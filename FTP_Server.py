@@ -28,15 +28,15 @@ class FTPServer (threading.Thread):
 		self.commandConn.send(reply.encode())
 		
 		while True:
+			if not self.isconnectionActive:
+				break
 			
 			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT']
 			
 			client_message = self.commandConn.recv(self.cmdBufferSize).decode()
+			print("Client : ", client_message)
 			command  = client_message[:4].strip()
 			argument = client_message[4:].strip()
-			
-			if not self.isconnectionActive:
-				break
 			
 			# Check command and call respective fn if available
 			if command in available_commands:
@@ -92,6 +92,11 @@ class FTPServer (threading.Thread):
 					reply = "500 Invalid password\r\n"
 		self.commandConn.send(reply.encode())
 			
+	def PWD(self):
+		reply = "257 " + "'self.cwd'" + " is the current working directry\r\n"
+		print(reply)
+		self.commandConn.send(reply.encode())
+	
 	def PASV(self):
 		#passive connection_socket
 		self.ActiveMode = False
@@ -145,12 +150,48 @@ class FTPServer (threading.Thread):
 			data_socket.close()
 		self.dataConn.close()
 		
-		reply = "266 Data transfer complete\r\n"
+		reply = "226 Data transfer complete\r\n"
 		print(reply)
 		self.commandConn.send(reply.encode())
 		
 		
-	def STOR(self, argument):
+	def STOR(self, filename):
+		
+		reply = "150 opening connection\r\n"
+		print(reply)
+		self.commandConn.send(reply.encode())
+		
+		#if not self.ActiveMode:
+		data_socket, data_address = self.dataConn.accept()
+		print("creating file..")
+		
+		filename = filename.replace('.','1.')
+		
+		file_name = self.cwd + '/' + filename
+		file = open(file_name, 'wb')
+		#if not self.ActiveMode:
+		print("receiving data...")
+		file_data = data_socket.recv(self.dataBufferSize)
+		print(file_data)
+		#else:
+			#file_data = self.dataConn.recv(self.dataBufferSize)
+			
+		while file_data:
+			print("receiving data...")
+			file.write(file_data)
+			#if not self.ActiveMode:
+			file_data = data_socket.recv(self.dataBufferSize)
+			#else:
+				#file_data = self.dataConn.recv(self.dataBufferSize)
+		
+		file.close()
+		#if not self.ActiveMode:
+		data_socket.close()
+		#self.dataConn.close()
+		
+		reply = "226 Data transfer complete\r\n"
+		print(reply)
+		#self.commandConn.send(reply.encode())
 		return
 		
 	def QUIT(self):

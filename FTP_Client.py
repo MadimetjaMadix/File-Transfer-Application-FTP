@@ -3,6 +3,7 @@ import sys
 import time
 import socket
 import threading
+from threading import Thread
 
 
 def initializeFTPConnection(host_name):
@@ -86,21 +87,20 @@ def dataConnection(bufferSize,control_socket):
 
 	return data_socket
 
-def download_file(file_Name, data_socket, bufferSize,control_socket):
+def download_file(file_Name, bufferSize,control_socket):
 	
 	downloadFolderName = "Downloads"
 	
 	if not os.path.exists(downloadFolderName):
 		os.makedirs(downloadFolderName)
 		
+	data_socket = dataConnection(bufferSize,control_socket)
+		
 	command  = 'RETR ' + file_Name + '\r\n' 
 	send_command(control_socket, command)
 	response = recv_command(control_socket)
 	
 	if file_Name: 
-		
-		#data_socket = dataConnection(bufferSize,control_socket)
-		
 		
 		file_data = data_socket.recv(bufferSize)
 		f = open(downloadFolderName + "/" + file_Name, 'wb')
@@ -110,6 +110,35 @@ def download_file(file_Name, data_socket, bufferSize,control_socket):
 			file_data = data_socket.recv(bufferSize)
 			
 		data_socket.close()
+		
+def upload_file(file_Name, bufferSize,control_socket):
+	
+	data_socket = dataConnection(bufferSize,control_socket)
+	
+	command  = 'STOR ' + file_Name + '\r\n' 
+	send_command(control_socket, command)
+	response = recv_command(control_socket)
+	
+	file_Name = os.getcwd() + '/'+ file_Name
+	
+	uploadFile   = open(file_Name, 'rb')
+	reading_data = uploadFile.read(bufferSize) 
+	
+	while reading_data:
+		print("Sending data...")
+		data_socket.send(reading_data)
+		reading_data = uploadFile.read(bufferSize) 
+	
+	uploadFile.close()
+	print("Done. file closed")
+	data_socket.close()
+	
+def logout(control_socket):
+	command = 'QUIT\r\n'
+	send_command(control_socket, command)
+	response = recv_command(control_socket)	
+	control_socket.close()
+	
 		
 def main():
 	
@@ -124,16 +153,17 @@ def main():
 	Login_is_valid = login(username, password,control_socket)
 	
 	if Login_is_valid:
+		#print("======================================================")
+		
+		#file_Name = "dataBase.txt"
+		
+		#download_file(file_Name, bufferSize,control_socket)
+		
 		print("======================================================")
-		data_socket = dataConnection(bufferSize,control_socket)
-		
 		file_Name = "dataBase.txt"
+		upload_file(file_Name, bufferSize,control_socket)
 		
-		download_file(file_Name, data_socket, bufferSize,control_socket)
-		
-	command = 'QUIT\r\n'
-	send_command(control_socket, command)
-	response = recv_command(control_socket)
+	logout(control_socket)
 	
 if __name__ == '__main__':
         main()
