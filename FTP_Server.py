@@ -19,19 +19,21 @@ class FTPServer (threading.Thread):
 		self.dataBufferSize = 8192
 		self.isconnectionActive = True
 		self.ActiveMode = False
-		
+	
+	def send_response(self,response):
+		print(response)
+		self.commandConn.send(response.encode())	
 		
 	def run(self):
 		print("Connection from : ", str(self.client_address))
 		reply = "220 Welcome to FTP server\r\n"
-		print(reply)
-		self.commandConn.send(reply.encode())
+		self.send_response(reply)
 		
 		while True:
 			if not self.isconnectionActive:
 				break
 			
-			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT']
+			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT' ]
 			
 			client_message = self.commandConn.recv(self.cmdBufferSize).decode()
 			print("Client : ", client_message)
@@ -49,11 +51,11 @@ class FTPServer (threading.Thread):
 			
 			elif command not in available_commands:
 				reply = "502 command not implemented\r\n"
-				print(reply)
-				self.commandConn.send(reply.encode())
+				self.send_response(reply)
 				
+	
 				
-	def USER(self, username):
+	def USER(self, username = 'user'):
 		
 		file = open(self.dataBase, 'r')
 		data = file.readlines()
@@ -65,23 +67,22 @@ class FTPServer (threading.Thread):
 			if username == validName:
 				self.user = username
 				self.validUser = True
-				reply = "331 password needed\r\n"
-				print(reply)
-				self.commandConn.send(reply.encode())				
+				
+				reply = "331 password required for " + self.user + "\r\n"
+				self.send_response(reply)				
 				return
 				
 		if not self.validUser:
 			reply = "530 Invalid User\r\n"
-			print(reply)
-			self.commandConn.send(reply.encode())
+			self.send_response(reply)
 		
 		
-	def PASS(self, password):
+	def PASS(self, password = 'pass'):
 		file = open(self.dataBase, 'r')
 		data = file.readlines()
 		file.close()
 		
-		# check USER and corrs pass in dataBase
+		# check USER and the corrs pass are in dataBase
 		if self.validUser:
 			for userInfo in data:
 				validName, validPass = userInfo.split()
@@ -90,15 +91,14 @@ class FTPServer (threading.Thread):
 					break
 				else:
 					reply = "500 Invalid password\r\n"
-		self.commandConn.send(reply.encode())
+		self.send_response(reply)
 			
 	def PWD(self):
 		reply = "257 " + "'self.cwd'" + " is the current working directry\r\n"
-		print(reply)
-		self.commandConn.send(reply.encode())
+		self.send_response(reply)
 	
 	def PASV(self):
-		#passive connection_socket
+		# Passive connection_socket, Disable Active mode
 		self.ActiveMode = False
 		host_name = socket.gethostbyname(socket.gethostname())
 		
@@ -116,16 +116,46 @@ class FTPServer (threading.Thread):
 		# Try to establish a socket connection
 		try:
 			self.dataConn = self.Establish_data_conn(host_adress)
+			
 			reply = "227 Entering Passive Mode " + str(server_address) + "\r\n"
-			print(reply)
-			self.commandConn.send(reply.encode())
-		except:
+			self.send_response(reply)
+			
+		except socket.error:
+		
 			reply = "425 Cannot open Data Connection\r\n"
-			print(reply)
-			self.commandConn.send(reply.encode())
+			self.send_response(reply)
+			
+	def PORT(self, data_address):
+		# Active mode connection
+		self.ActiveMode = True
+
+		data_address = data_address.split(',')
+		host_IP = '.'.join(data_address[:4])
 		
+		port_num = data_address[-2:]
+		host_port = int((int(port_num[0])*256 ) + port_num[1])
 		
+		host_adress = (host_IP, host_port)
+		
+		self.dataConn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		
+		try:
+			
+			self.dataConn.connect(host_adress)
+			
+			reply = "225 Entering Active mode\r\n"
+			self.send_response(reply)
+			
+		except socket.error:
+		
+			reply = "425 Cannot open Data Connection\r\n"
+			self.send_response(reply)
+			
+
 	def RETR(self, file_name):
+	
+		reply = "150 File status okay; about to open data connection\r\n"
+		self.send_response(reply)
 		
 		# check the data connection mode (Active or Passive)
 		if not self.ActiveMode:
@@ -150,55 +180,48 @@ class FTPServer (threading.Thread):
 			data_socket.close()
 		self.dataConn.close()
 		
-		reply = "226 Data transfer complete\r\n"
-		print(reply)
-		self.commandConn.send(reply.encode())
-		
+		reply = "226 Closeing data connection. Requested transfer action successful\r\n"
+		self.send_response(reply)
 		
 	def STOR(self, filename):
 		
-		reply = "150 opening connection\r\n"
-		print(reply)
-		self.commandConn.send(reply.encode())
+		reply = "150 File status okay; about to open data connection\r\n"
+		self.send_response(reply)
 		
-		#if not self.ActiveMode:
-		data_socket, data_address = self.dataConn.accept()
-		print("creating file..")
+		if not self.ActiveMode:
+			data_socket, data_address = self.dataConn.accept()
 		
 		filename = filename.replace('.','1.')
 		
 		file_name = self.cwd + '/' + filename
 		file = open(file_name, 'wb')
-		#if not self.ActiveMode:
-		print("receiving data...")
-		file_data = data_socket.recv(self.dataBufferSize)
-		print(file_data)
-		#else:
-			#file_data = self.dataConn.recv(self.dataBufferSize)
+		if not self.ActiveMode:
+			file_data = data_socket.recv(self.dataBufferSize)
+		else:
+			file_data = self.dataConn.recv(self.dataBufferSize)
 			
 		while file_data:
-			print("receiving data...")
+			
 			file.write(file_data)
-			#if not self.ActiveMode:
-			file_data = data_socket.recv(self.dataBufferSize)
-			#else:
-				#file_data = self.dataConn.recv(self.dataBufferSize)
+			if not self.ActiveMode:
+				file_data = data_socket.recv(self.dataBufferSize)
+			else:
+				file_data = self.dataConn.recv(self.dataBufferSize)
 		
 		file.close()
-		#if not self.ActiveMode:
-		data_socket.close()
-		#self.dataConn.close()
+		if not self.ActiveMode:
+			data_socket.close()
+		self.dataConn.close()
 		
-		reply = "226 Data transfer complete\r\n"
-		print(reply)
-		#self.commandConn.send(reply.encode())
+		reply = "226 Closeing data connection. Requested transfer action successful\r\n"
+		self.send_response(reply)
 		return
 		
 	def QUIT(self):
 		# Disable the command socket connection
 		self.isconnectionActive = False
 		reply = "221 Goodbye\r\n"
-		self.commandConn.send(reply.encode())
+		self.send_response(reply)
 		self.commandConn.close()
 		
 	def Establish_data_conn(self, host_adress):

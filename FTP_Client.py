@@ -22,12 +22,11 @@ def initializeFTPConnection(host_name):
 		print("Failed to connect to ", host_name )
 		time.sleep(3)
 		return
-	print("				Connected to Server					")	
+	print("			Connected to Server				")	
 	return control_socket
 
 def login( username, password,control_socket):
 	
-	#control_socket = initializeFTPConnection(socket.gethostname())
 	
 	command  = 'USER ' + username + '\r\n' 
 	send_command(control_socket, command)
@@ -81,7 +80,6 @@ def dataConnection(bufferSize,control_socket):
 	data_port = int((int(tempDataPort[0]) * 256) + int(tempDataPort[1]))
 	data_port = int(data_port)
 	
-	
 	data_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 	data_socket.connect((data_host,data_port))
 
@@ -111,6 +109,8 @@ def download_file(file_Name, bufferSize,control_socket):
 			
 		data_socket.close()
 		
+	response = recv_command(control_socket)
+		
 def upload_file(file_Name, bufferSize,control_socket):
 	
 	data_socket = dataConnection(bufferSize,control_socket)
@@ -123,15 +123,14 @@ def upload_file(file_Name, bufferSize,control_socket):
 	
 	uploadFile   = open(file_Name, 'rb')
 	reading_data = uploadFile.read(bufferSize) 
-	
 	while reading_data:
-		print("Sending data...")
+		
 		data_socket.send(reading_data)
 		reading_data = uploadFile.read(bufferSize) 
 	
 	uploadFile.close()
-	print("Done. file closed")
 	data_socket.close()
+	response = recv_command(control_socket)
 	
 def logout(control_socket):
 	command = 'QUIT\r\n'
@@ -143,6 +142,8 @@ def logout(control_socket):
 def main():
 	
 	bufferSize = 8192
+	username = ""
+	password = ""
 	
 	host_name = socket.gethostbyname(socket.gethostname())
 	
