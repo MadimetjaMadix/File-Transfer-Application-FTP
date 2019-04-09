@@ -19,6 +19,7 @@ class FTPServer (threading.Thread):
 		self.dataBufferSize = 8192
 		self.isconnectionActive = True
 		self.ActiveMode = False
+		self.dataType = 'A'
 	
 	def send_response(self,response):
 		print(response)
@@ -33,7 +34,7 @@ class FTPServer (threading.Thread):
 			if not self.isconnectionActive:
 				break
 			
-			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT' ]
+			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'CWD']
 			
 			client_message = self.commandConn.recv(self.cmdBufferSize).decode()
 			print("Client : ", client_message)
@@ -92,9 +93,26 @@ class FTPServer (threading.Thread):
 				else:
 					reply = "500 Invalid password\r\n"
 		self.send_response(reply)
-			
+		
+	def TYPE(self,dataType):
+		# set the data transfer type to ASCII(A) or Binary(I)
+		self.dataType = dataType
+		reply = "200 Type set to " + self.dataType +"\r\n"
+		self.send_response(reply)
+		
+	def CWD(self, path):
+		# Try change the current working directry
+		newPath = self.cwd + '/' + str(path)
+        if os.path.exists(newPath):
+			reply = '250 Requested file action okay, completed.\r\n'
+			self.cwd = newPath
+		else:
+			reply = '550 Requested action not taken. File/Directory unavailable\r\n'
+		
+		self.send_response(reply)
+	
 	def PWD(self):
-		reply = "257 " + "'self.cwd'" + " is the current working directry\r\n"
+		reply = "257 " + ' "' + self.cwd + '" ' + " is the current working directry\r\n"
 		self.send_response(reply)
 	
 	def PASV(self):
