@@ -34,7 +34,7 @@ class FTPServer (threading.Thread):
 			if not self.isconnectionActive:
 				break
 			
-			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'CWD']
+			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'CWD', 'LIST']
 			
 			client_message = self.commandConn.recv(self.cmdBufferSize).decode()
 			print("Client : ", client_message)
@@ -115,6 +115,16 @@ class FTPServer (threading.Thread):
 		reply = "257 " + ' "' + self.cwd + '" ' + " is the current working directry\r\n"
 		self.send_response(reply)
 	
+	def LIST(self):
+		
+		listInDirectory = os.listdir(self.cwd)
+		
+		print("List : " + str(listInDirectory))
+		
+		reply = '200 ' + ','.join(listInDirectory)+ '\r\n'
+		self.send_response(reply)
+		
+		
 	def PASV(self):
 		# Passive connection_socket, Disable Active mode
 		self.ActiveMode = False
@@ -231,7 +241,7 @@ class FTPServer (threading.Thread):
 			data_socket.close()
 		self.dataConn.close()
 		
-		reply = "226 Closeing data connection. Requested transfer action successful\r\n"
+		reply = "226 Closing data connection. Requested transfer action successful\r\n"
 		self.send_response(reply)
 		return
 		
