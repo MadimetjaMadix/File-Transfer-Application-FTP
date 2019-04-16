@@ -103,7 +103,7 @@ class FTPServer (threading.Thread):
 	def CWD(self, path):
 		# Try change the current working directry
 		newPath = self.cwd + '/' + str(path)
-        if os.path.exists(newPath):
+		if os.path.exists(newPath):
 			reply = '250 Requested file action okay, completed.\r\n'
 			self.cwd = newPath
 		else:

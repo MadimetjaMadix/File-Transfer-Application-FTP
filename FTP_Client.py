@@ -93,7 +93,13 @@ def download_file(file_Name, bufferSize,control_socket):
 		os.makedirs(downloadFolderName)
 		
 	data_socket = dataConnection(bufferSize,control_socket)
-		
+	
+
+	command  = 'CWD ' + file_Name + '\r\n' 
+	send_command(control_socket, command)
+	response = recv_command(control_socket)
+	
+	
 	command  = 'RETR ' + file_Name + '\r\n' 
 	send_command(control_socket, command)
 	response = recv_command(control_socket)
@@ -167,4 +173,4 @@ def main():
 	logout(control_socket)
 	
 if __name__ == '__main__':
-        main()
+		main()
