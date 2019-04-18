@@ -10,11 +10,13 @@ from ClientUI import Ui_ClientUI
 
 class FTPClient:
 	def __init__(self):
+		self.IsConnected = False
 		self.control_socket = None
 		self.data_socket = None
 		self.bufferSize = 8192
 		self.clientID = ""
 		self.IsValidUser = False
+		self.ErrorCodes = ['530', '500', '501', '421', '403', '550']
 	
 	def initializeFTPConnection(self, host_name):
 		
@@ -32,6 +34,7 @@ class FTPClient:
 			print("Failed to connect to ", host_name )
 			time.sleep(3)
 			return
+		self.IsConnected = True
 		print("			Connected to Server				")
 		
 
@@ -41,14 +44,13 @@ class FTPClient:
 		self.send_command( command )
 		response = self.recv_command()
 		
-		ErrorCodes = ['530', '500', '501', '421', '403']
-		if response[0] not in ErrorCodes:
+		if response[0] not in self.ErrorCodes:
 			
 			command  = 'PASS ' + password + '\r\n' 
 			self.send_command(command)
 			response = self.recv_command()
 			
-			if response[0] in ErrorCodes:
+			if response[0] in self.ErrorCodes:
 				self.IsValidUser = False
 				
 			self.IsValidUser = True
@@ -113,17 +115,13 @@ class FTPClient:
 		if not os.path.exists(downloadFolderName):
 			os.makedirs(downloadFolderName)
 			
-		self.data_socket = self.dataConnection()
-		
-		command  = 'CWD ' + file_Name + '\r\n' 
-		self.send_command( command)
-		response = self.recv_command()
+		self.dataConnection()
 		
 		command  = 'RETR ' + file_Name + '\r\n' 
 		self.send_command( command)
 		response = self.recv_command()
 		
-		if file_Name: 
+		if response[0] not in self.ErrorCodes: 
 			
 			file_data = self.data_socket.recv(self.bufferSize)
 			f = open(downloadFolderName + "/" + file_Name, 'wb')
@@ -133,8 +131,8 @@ class FTPClient:
 				file_data = self.data_socket.recv(self.bufferSize)
 				
 			f.close()
-			self.data_socket.close()
-			
+		self.data_socket.close()
+		
 		response = self.recv_command()
 			
 	def upload_file(self, file_Name):
@@ -177,23 +175,27 @@ def main():
 	
 	client.initializeFTPConnection(host_name)
 	
-	username = input(str("Enter user name : "))
-	password = input(str("Enter user pass : "))
-	client.login(username, password)
+	if not client.IsConnected:
+		return
+	else:
+		username = input(str("Enter user name : "))
+		password = input(str("Enter user pass : "))
+		client.login(username, password)
 	
 	if client.IsValidUser:
 		#print("======================================================")
+		client.getDirList()
 		
-		#file_Name = "dataBase.txt"
+		file_Name = input(str("Enter the name of the file you want to download : "))
 		
-		#download_file(file_Name, self.bufferSize,self.control_socket)
+		client.download_file(file_Name)
 		
 		print("======================================================")
 
 		#client.getDirList()
 		
-		file_Name = "dataBase.txt"
-		client.upload_file(file_Name)
+		#file_Name = "dataBase.txt"
+		#client.upload_file(file_Name)
 		
 	client.logout()
 	

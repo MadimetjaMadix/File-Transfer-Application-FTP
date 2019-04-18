@@ -181,34 +181,39 @@ class FTPServer (threading.Thread):
 			
 
 	def RETR(self, file_name):
-	
-		reply = "150 File status okay; about to open data connection\r\n"
-		self.send_response(reply)
-		
-		# check the data connection mode (Active or Passive)
-		if not self.ActiveMode:
-			data_socket, data_address = self.dataConn.accept()
-		
-		# Locate and transfer the file
-		filename = self.cwd + '/' + file_name
-		file = open(filename, 'rb')
-		reading = file.read(self.dataBufferSize)
-		
-		print("Accessing file: ", filename)
-		while reading:
-			print("Reading file ...")
+		reply = ""
+		if os.path.isfile(file_name):
+			reply = "150 File status okay; about to open data connection\r\n"
+			self.send_response(reply)
+			
+			# check the data connection mode (Active or Passive)
 			if not self.ActiveMode:
-				data_socket.send(reading)
-			else:
-				self.dataConn.send(reading)
+				data_socket, data_address = self.dataConn.accept()
+			
+			# Locate and transfer the file
+			filename = self.cwd + '/' + file_name
+
+			file = open(filename, 'rb')
 			reading = file.read(self.dataBufferSize)
 			
-		file.close()
-		if not self.ActiveMode:
-			data_socket.close()
-		self.dataConn.close()
-		
-		reply = "226 Closeing data connection. Requested transfer action successful\r\n"
+			print("Accessing file: ", filename)
+			while reading:
+				print("Reading file ...")
+				if not self.ActiveMode:
+					data_socket.send(reading)
+				else:
+					self.dataConn.send(reading)
+				reading = file.read(self.dataBufferSize)
+				
+			file.close()
+			if not self.ActiveMode:
+				data_socket.close()
+			self.dataConn.close()
+			
+			reply = "226 Closeing data connection. Requested transfer action successful\r\n"
+		else:
+			reply = "550 The system cannot find the file specified.\r\n"
+			
 		self.send_response(reply)
 		
 	def STOR(self, filename):
