@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import string
 import socket
 import random
 import threading
@@ -34,7 +35,7 @@ class FTPServer (threading.Thread):
 			if not self.isconnectionActive:
 				break
 			
-			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'CWD', 'LIST']
+			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'CWD', 'LIST', 'CDUP', 'MKD', 'RMD' ]
 			
 			client_message = self.commandConn.recv(self.cmdBufferSize).decode()
 			print("Client : ", client_message)
@@ -117,13 +118,41 @@ class FTPServer (threading.Thread):
 	
 	def LIST(self):
 		
-		listInDirectory = os.listdir(self.cwd)
-		
-		print("List : " + str(listInDirectory))
-		
-		reply = '200 ' + ','.join(listInDirectory)+ '\r\n'
+		reply = '150 File status okay; about to open data connection\r\n'
 		self.send_response(reply)
 		
+		# check the data connection mode (Active or Passive)
+		if not self.ActiveMode:
+			data_socket, data_address = self.dataConn.accept()
+			
+		# Get directory list
+		directory_list  = os.listdir(self.cwd)
+		fileInfo = []
+		for file in directory_list :
+			mtime = time.strftime("%X %x", time.gmtime(os.path.getmtime(file)))
+			fsize = str(os.path.getsize(file))
+			if os.path.isfile(file):
+				mode = '-a----'
+			else:
+				mode = 'd-----'
+			fileInfo = [mode]
+			fileInfo.append(mtime)
+			fileInfo.append(fsize)
+			fileInfo.append(file)
+			print(fileInfo)
+			[str(x) for x in fileInfo]
+			fileInfo = ','.join(fileInfo)
+			if not self.ActiveMode:
+				data_socket.send(fileInfo.encode('utf-8'))
+			else:
+				self.dataConn.send(fileInfo.encode('utf-8'))
+				
+		if not self.ActiveMode:
+			data_socket.close()
+		self.dataConn.close()
+			
+		reply = "226 Closeing data connection. Requested transfer action successful\r\n"
+		self.send_response(reply)
 		
 	def PASV(self):
 		# Passive connection_socket, Disable Active mode
@@ -181,6 +210,7 @@ class FTPServer (threading.Thread):
 			
 
 	def RETR(self, file_name):
+		# returns data to the client.
 		reply = ""
 		if os.path.isfile(file_name):
 			reply = "150 File status okay; about to open data connection\r\n"
@@ -217,7 +247,7 @@ class FTPServer (threading.Thread):
 		self.send_response(reply)
 		
 	def STOR(self, filename):
-		
+		# STORES data on the server
 		reply = "150 File status okay; about to open data connection\r\n"
 		self.send_response(reply)
 		
@@ -267,7 +297,7 @@ class FTPServer (threading.Thread):
 
 def main():
 	
-	clientList  = "dataBase.txt"
+	clientList  = ".dataBase.txt"
 	host_name   = socket.gethostbyname(socket.gethostname())
 	host_port 	= 21
 	host_adress = (host_name, host_port)

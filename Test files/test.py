@@ -63,7 +63,7 @@ for item in listInDirectory:
 	#mode = getmode(item)
 	if os.path.isfile(item):
 		mode = '-a----'
-		fsize = convertFileSize(item)
+		fsize = str(os.path.getsize(item))
 		# Print file attributes
 		#print('\t{:2s} {:18s}{:8d} {:2s} {:15.15s}'.format(mode,mtime,fsize,unit,item))
 	else:
