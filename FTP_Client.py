@@ -13,13 +13,15 @@ from ClientUI import Ui_ClientUI
 class FTPClient:
 	def __init__(self):
 		self.IsConnected = False
-		self.isActive = True
+		self.isActive = False
 		self.control_socket = None
 		self.data_socket = None
 		self.data_connection = None
 		self.bufferSize = 8192
 		self.clientID = ""
 		self.IsValidUser = False
+		self.server_response = ""
+		self.isError = False
 		self.ErrorCodes = ['530', '500', '501', '421', '403', '550']
 	#_____________________________________________________________________
 	# Function to initialize a TCP to the server
@@ -35,8 +37,10 @@ class FTPClient:
 			self.recv_command()
 			print("=====================================================")
 		except:
-			
-			print("Failed to connect to ", host_name )
+			message = str("Failed to connect to " + host_name )
+			self.isError = True
+			self.server_response = message
+			print(message)
 			time.sleep(3)
 			return
 		self.IsConnected = True
@@ -58,9 +62,9 @@ class FTPClient:
 			
 			if response[0] in self.ErrorCodes:
 				self.IsValidUser = False
-				
-			self.IsValidUser = True
-			self.clientID = username
+			else:
+				self.IsValidUser = True
+				self.clientID = username
 		else:
 			self.IsValidUser = False
 	#_____________________________________________________________________
@@ -101,6 +105,11 @@ class FTPClient:
 	def recv_command(self):
 		response = self.control_socket.recv(8192).decode()
 		responseCode, message = response.split(" ", 1)
+		self.server_response = message
+		if responseCode not in self.ErrorCodes:
+			self.isError = False
+		else:
+			self.isError = True
 		print("Server: " ,response)
 		return responseCode, message
 	#_____________________________________________________________________
@@ -244,7 +253,9 @@ class FTPClient:
 		command = 'QUIT\r\n'
 		self.send_command( command)
 		response = self.recv_command()
-		self.data_connection.close()
+		self.IsConnected = False
+		if self.isActive:
+			self.data_connection.close()
 		self.control_socket.close()
 	#_____________________________________________________________________
 		
