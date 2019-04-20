@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import socket
+import random
 import string
 import threading
 from threading import Thread
@@ -12,8 +13,10 @@ from ClientUI import Ui_ClientUI
 class FTPClient:
 	def __init__(self):
 		self.IsConnected = False
+		self.isActive = True
 		self.control_socket = None
 		self.data_socket = None
+		self.data_connection = None
 		self.bufferSize = 8192
 		self.clientID = ""
 		self.IsValidUser = False
@@ -77,14 +80,21 @@ class FTPClient:
 		
 		if response[0] not in self.ErrorCodes: 
 			
-			file_data = self.data_socket.recv(self.bufferSize)
-			while file_data:
-				fileInfo = file_data.decode('utf-8')
-				
-				print(fileInfo.split(','))
+			if self.isActive:
+				file_data = self.data_connection.recv(self.bufferSize)
+			else:
 				file_data = self.data_socket.recv(self.bufferSize)
 				
-		self.data_socket.close()
+			while file_data:
+				fileInfo = file_data.decode('utf-8')
+				print(fileInfo.split(','))
+				if self.isActive:
+					file_data = self.data_connection.recv(self.bufferSize)
+				else:
+					file_data = self.data_socket.recv(self.bufferSize)
+		if not self.isActive:
+			self.data_socket.close()
+		
 		response = self.recv_command()
 	#_____________________________________________________________________
 	# Function to receive the reply from the server
@@ -98,46 +108,79 @@ class FTPClient:
 	def directory_change(self, directory):
 		command = 'CWD ' + directory + '\r\n'
 		self.send_command( command)
+		response = self.recv_command()
 	#_____________________________________________________________________
 	# Function to go up a directory in the server
 	def directory_return(self):
 		command = 'CDUP\r\n'
 		self.send_command( command)
+		response = self.recv_command()
 	#_____________________________________________________________________
 	# Function to create a folder on the server
 	def directory_create(self, directory):
 		command = 'MKD ' + directory + '\r\n'
-		self.send_command(self.client_socket, command)
+		self.send_command( command)
+		response = self.recv_command()
 	#_____________________________________________________________________
 	# Function to delete a folder on the server
 	def directory_delete(self, directory):
 		command = 'RMD ' + directory + '\r\n'
-		self.send_command(self.client_socket, command)
+		self.send_command( command)
+		response = self.recv_command()
 	#_____________________________________________________________________
 	# Function to establish a Passive data connection
 	def dataConnection(self):
 		
-		#PASV
-		command  = 'PASV\r\n' 
-		self.send_command( command)
-		response = self.recv_command()
-		
-		response = response[1]
-		firstBracketIndex = response.find("(")
-		lastBracketIndex  = response.find(")")
-		
-		dataPortAddress   = response[firstBracketIndex + 1:lastBracketIndex]
-		dataPortAddress   = dataPortAddress.split(",")
-		
-		data_host 	 = '.'.join(dataPortAddress[0:4])
+		if self.isActive:
+			#Active
+			
+			# calculate a random port number between 12032 and 33023
+			port_num1 = random.randint(47,128)
+			port_num2 = random.randint(0,255)
+			host_port = (port_num1 * 256) + port_num2
+			
+			host_name = socket.gethostbyname(socket.gethostname())
+			host_adress = (host_name,host_port)
+			
+			server_address = host_name.split(".")
+			server_address = ','.join(server_address)
+			server_address = server_address + "," + str(port_num1) +"," + str(port_num2)
+			
+			# Creates the data socket by listening for the connection
+			data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			data_socket.bind((host_name, host_port))
+			data_socket.listen(5)
+			
+			# Sends the PORT commands and tuple to the server
+			command = 'PORT ' + server_address + '\r\n'
+			self.send_command( command)
+			response = self.recv_command()
 
-		tempDataPort = dataPortAddress[-2:]
-		
-		data_port = int((int(tempDataPort[0]) * 256) + int(tempDataPort[1]))
-		data_port = int(data_port)
-		
-		self.data_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-		self.data_socket.connect((data_host,data_port))
+			# Accepts the connection from the server
+			self.data_connection, address_ip = data_socket.accept()
+			
+		else:
+			#PASV
+			command  = 'PASV\r\n' 
+			self.send_command( command)
+			response = self.recv_command()
+			
+			response = response[1]
+			firstBracketIndex = response.find("(")
+			lastBracketIndex  = response.find(")")
+			
+			dataPortAddress   = response[firstBracketIndex + 1:lastBracketIndex]
+			dataPortAddress   = dataPortAddress.split(",")
+			
+			data_host 	 = '.'.join(dataPortAddress[0:4])
+
+			tempDataPort = dataPortAddress[-2:]
+			
+			data_port = int((int(tempDataPort[0]) * 256) + int(tempDataPort[1]))
+			data_port = int(data_port)
+			
+			self.data_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+			self.data_socket.connect((data_host,data_port))
 	#_____________________________________________________________________
 	# Function to download file from server to the downloads folder
 	def download_file(self, file_Name):
@@ -200,7 +243,8 @@ class FTPClient:
 	def logout(self):
 		command = 'QUIT\r\n'
 		self.send_command( command)
-		response = self.recv_command()	
+		response = self.recv_command()
+		self.data_connection.close()
 		self.control_socket.close()
 	#_____________________________________________________________________
 		
@@ -226,10 +270,23 @@ def main():
 	if client.IsValidUser:
 		#print("======================================================")
 		client.getDirList()
+		client.directory_create("New")
+		client.getDirList()
+		client.directory_change("New")
+		command = 'PWD\r\n'
+		client.send_command( command)
+		response = client.recv_command()
 		
-		file_Name = input(str("Enter the name of the file you want to download : "))
+		client.directory_return()
+		command = 'PWD\r\n'
+		client.send_command( command)
+		response = client.recv_command()
 		
-		client.download_file(file_Name)
+		client.directory_delete("New")
+		client.getDirList()
+		#file_Name = input(str("Enter the name of the file you want to download : "))
+		
+		#client.download_file(file_Name)
 		
 		print("======================================================")
 

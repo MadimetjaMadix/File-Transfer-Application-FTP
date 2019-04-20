@@ -1,4 +1,4 @@
-import os
+import shutil, os
 import sys
 import time
 import string
@@ -35,7 +35,7 @@ class FTPServer (threading.Thread):
 			if not self.isconnectionActive:
 				break
 			
-			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'CWD', 'LIST', 'CDUP', 'MKD', 'RMD' ]
+			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'PWD', 'CWD', 'LIST', 'CDUP', 'MKD', 'RMD' ]
 			
 			client_message = self.commandConn.recv(self.cmdBufferSize).decode()
 			print("Client : ", client_message)
@@ -101,12 +101,41 @@ class FTPServer (threading.Thread):
 		reply = "200 Type set to " + self.dataType +"\r\n"
 		self.send_response(reply)
 		
+	def CDUP(self):
+		# Try to go up one directory
+		os.chdir("..")
+		self.cwd  = os.getcwd()
+		reply = "200 current working directry is " + self.cwd +"\r\n"
+		self.send_response(reply)
+		
+	def MKD(self, directory):
+		# Try make new directory
+		if not os.path.exists(directory):
+			os.makedirs(directory)
+		reply = "257 directory " + directory + " is created\r\n"
+		self.send_response(reply)
+		
+	def RMD (self,directory):
+		# Try remove a directory
+		reply = ""
+		if os.path.exists(directory):
+			try:
+				shutil.rmtree(directory)
+				reply = "250 directory " + directory + " is removed\r\n"
+			except OSError:
+				reply = "500 error while removing  the directory\r\n"
+		else:
+			reply = "550 Requested action not taken. File/Directory unavailable\r\n"
+			
+		self.send_response(reply)
+		
 	def CWD(self, path):
 		# Try change the current working directry
 		newPath = self.cwd + '/' + str(path)
 		if os.path.exists(newPath):
 			reply = '250 Requested file action okay, completed.\r\n'
-			self.cwd = newPath
+			os.chdir(newPath)
+			self.cwd = os.getcwd()
 		else:
 			reply = '550 Requested action not taken. File/Directory unavailable\r\n'
 		
@@ -162,7 +191,7 @@ class FTPServer (threading.Thread):
 		# calculate a random port number between 12032 and 33023
 		port_num1 = random.randint(47,128)
 		port_num2 = random.randint(0,255)
-		host_port = (port_num1 * 256) + port_num2
+		host_port = int((int(port_num1) * 256) + int(port_num2))
 		
 		host_adress = (host_name,host_port)
 		
@@ -190,7 +219,7 @@ class FTPServer (threading.Thread):
 		host_IP = '.'.join(data_address[:4])
 		
 		port_num = data_address[-2:]
-		host_port = int((int(port_num[0])*256 ) + port_num[1])
+		host_port = int((int(port_num[0])*256 ) + int(port_num[1]))
 		
 		host_adress = (host_IP, host_port)
 		

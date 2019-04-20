@@ -36,7 +36,7 @@ for file in directory_list :
 	print(fileInfo)
 	fileInfo = ','.join(fileInfo)
 	print(fileInfo.encode())
-	'''
+	
 filename = input(str("Enter file name :  "))
 while filename:
 	if os.path.isfile(filename):
@@ -44,3 +44,12 @@ while filename:
 	else: 
 		print ("File doesn't exists")
 	filename = input(str("Enter file name :  "))
+	'''
+	
+path = os.getcwd()
+print(path)
+os.chdir("..")
+path = os.getcwd()
+print(path)
+	
+	
