@@ -1,6 +1,8 @@
 import shutil, os
 import sys
 import time
+import stat
+import datetime
 import string
 import socket
 import random
@@ -147,40 +149,24 @@ class FTPServer (threading.Thread):
 	
 	def LIST(self):
 		
-		reply = '150 File status okay; about to open data connection\r\n'
+		reply = "125 List being send to Dataconnection\r\n"
 		self.send_response(reply)
+		data_socket, data_address = self.dataConn.accept()
 		
-		# check the data connection mode (Active or Passive)
-		if not self.ActiveMode:
-			data_socket, data_address = self.dataConn.accept()
+		response = []
+		if os.path.exists(self.cwd ):
+			items = os.listdir(self.cwd )
+			for file in items:
+				newPath = os.path.join(self.cwd ,file)
+				date_mod = datetime.datetime.fromtimestamp(os.path.getmtime(newPath)).strftime('%b %d %H:%M')
+				fileSize = os.path.getsize(newPath)
+				file_data = str(stat.filemode(os.stat(newPath).st_mode))+'\t'+'1 4006 \t 4000\t\t'+str(fileSize)+'\t'+str(date_mod)+'\t'+file 
+				response.append(file_data)
+		
+		for item in response:
+			data_socket.send((item+'\r\n').encode())
 			
-		# Get directory list
-		directory_list  = os.listdir(self.cwd)
-		fileInfo = []
-		for file in directory_list :
-			mtime = time.strftime("%X %x", time.gmtime(os.path.getmtime(file)))
-			fsize = str(os.path.getsize(file))
-			if os.path.isfile(file):
-				mode = '-a----'
-			else:
-				mode = 'd-----'
-			fileInfo = [mode]
-			fileInfo.append(mtime)
-			fileInfo.append(fsize)
-			fileInfo.append(file)
-			print(fileInfo)
-			[str(x) for x in fileInfo]
-			fileInfo = ','.join(fileInfo)
-			if not self.ActiveMode:
-				data_socket.send(fileInfo.encode('utf-8'))
-			else:
-				self.dataConn.send(fileInfo.encode('utf-8'))
-				
-		if not self.ActiveMode:
-			data_socket.close()
-		self.dataConn.close()
-			
-		reply = "226 Closeing data connection. Requested transfer action successful\r\n"
+		reply = "200 Listing completed\r\n"
 		self.send_response(reply)
 		
 	def PASV(self):

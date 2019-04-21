@@ -22,6 +22,7 @@ class FTPClient:
 		self.IsValidUser = False
 		self.server_response = ""
 		self.isError = False
+		self.ListInDir = []
 		self.ErrorCodes = ['530', '500', '501', '421', '403', '550']
 	#_____________________________________________________________________
 	# Function to initialize a TCP to the server
@@ -76,6 +77,7 @@ class FTPClient:
 	# Function to get the list of files on the server's directory
 	def getDirList(self):
 		
+		self.isActive = False
 		self.dataConnection()
 		
 		command = 'LIST\r\n'
@@ -85,21 +87,81 @@ class FTPClient:
 		if response[0] not in self.ErrorCodes: 
 			
 			if self.isActive:
-				file_data = self.data_connection.recv(self.bufferSize)
+				file_data = self.data_connection.recv(self.bufferSize).decode('utf-8').rstrip()
 			else:
-				file_data = self.data_socket.recv(self.bufferSize)
-				
+				file_data = self.data_socket.recv(self.bufferSize).decode('utf-8').rstrip()
+			self.ListInDir = []
 			while file_data:
-				fileInfo = file_data.decode('utf-8')
-				print(fileInfo.split(','))
+				fileInfo = file_data.split('\r')
+				for item in fileInfo:
+					item = item.strip().rstrip()
+					self.modifyListDetails(item)
+				#print(fileInfo.split(','))
 				if self.isActive:
-					file_data = self.data_connection.recv(self.bufferSize)
+					file_data = self.data_connection.recv(self.bufferSize).decode('utf-8').rstrip()
 				else:
-					file_data = self.data_socket.recv(self.bufferSize)
+					file_data = self.data_socket.recv(self.bufferSize).decode('utf-8').rstrip()
 		if not self.isActive:
 			self.data_socket.close()
-		
+		print(self.ListInDir)
 		response = self.recv_command()
+		
+	def modifyListDetails(self,listData):
+		'''
+			modifyListDetails 
+		'''
+		print(listData)
+		filePermission = 0
+		filenameIndex  = 8
+		fileSizeIndex  = 4
+		fileLastModifiedIndexFirst = 5
+		fileLastModifiedIndexLast  = 8
+		
+		# Split into columns:
+		temp = listData.split()
+
+		# Select file name:
+		filename = ' '.join(temp[filenameIndex:])
+		
+		# Select file size:
+		fileSize = float(' '.join(temp[fileSizeIndex:fileSizeIndex+1]))
+		tempFileSize = self.processFileSize(fileSize)
+		fileSize = str(tempFileSize[0])+' '+tempFileSize[1] 
+	
+		# Select last modified details:
+		lastModified = ' '.join(temp[fileLastModifiedIndexFirst:fileLastModifiedIndexLast])
+		
+		# Select permissions:
+		permissions = ' '.join(temp[filePermission:filePermission+1])
+		
+		# add to list:
+		tempList = [filename, fileSize, lastModified, permissions]
+		
+		# Remove empty fields:
+		tempList = list(filter(None, tempList))
+		
+		self.ListInDir.append(tempList)
+	
+	def processFileSize(self, fileSize):
+		# Response is in bytes:
+		
+		kbSize        = 1024
+		mbSize        = kbSize**2
+		newFileSize   = 0
+		sizeType	  = 'Bytes'
+		# Convert to megabytes when file is larger than a megabyte
+		if fileSize < kbSize:
+			newFileSize = fileSize
+		elif fileSize >= kbSize and fileSize < mbSize:
+			newFileSize = fileSize/kbSize
+			sizeType    = 'KB'
+		elif fileSize >= mbSize:
+			newFileSize = fileSize/mbSize
+			sizeType = 'MB'
+		
+		newFileSize = round(newFileSize,2)
+		return newFileSize, sizeType
+	
 	#_____________________________________________________________________
 	# Function to receive the reply from the server
 	def recv_command(self):
@@ -280,20 +342,20 @@ def main():
 	
 	if client.IsValidUser:
 		#print("======================================================")
-		client.getDirList()
-		client.directory_create("New")
-		client.getDirList()
-		client.directory_change("New")
-		command = 'PWD\r\n'
-		client.send_command( command)
-		response = client.recv_command()
+		#client.getDirList()
+		#client.directory_create("New")
+		#client.getDirList()
+		#client.directory_change("New")
+		#command = 'PWD\r\n'
+		#client.send_command( command)
+		#response = client.recv_command()
 		
-		client.directory_return()
-		command = 'PWD\r\n'
-		client.send_command( command)
-		response = client.recv_command()
+		#client.directory_return()
+		#command = 'PWD\r\n'
+		#client.send_command( command)
+		#response = client.recv_command()
 		
-		client.directory_delete("New")
+		#client.directory_delete("New")
 		client.getDirList()
 		#file_Name = input(str("Enter the name of the file you want to download : "))
 		
