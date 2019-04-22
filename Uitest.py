@@ -13,7 +13,6 @@ from FTP_Client import FTPClient
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileSystemModel, QTreeView, QWidget, QHBoxLayout, QApplication
 from ClientUI import Ui_ClientUI
-from popUp import Ui_CreateDirectoryWindow
 
 class clientUI_Interface(Ui_ClientUI):
 	def __init__(self, ftpClientUIMain, ftpClient):
@@ -31,6 +30,9 @@ class clientUI_Interface(Ui_ClientUI):
 			self.Quit_pushButton.setEnabled(False)
 			self.btn_refreshRemoteDir.setEnabled(False)
 			self.remoteDir_tableWidget.setEnabled(False)
+			self.dirName_lineEdit.setEnabled(False)
+			self.btn_createDir.setEnabled(False)
+			self.btn_Cancell_createDir.setEnabled(False)
 			self.updateServerDirectoryList()
 			#-----------------Local-------------------
 			self.populateLocalDir()
@@ -40,6 +42,8 @@ class clientUI_Interface(Ui_ClientUI):
 			self.Quit_pushButton.clicked.connect(self.quit)
 			self.btn_refreshRemoteDir.clicked.connect(self.refreshRemote)
 			self.btn_RefreshLocalDir.clicked.connect(self.refreshLocal)
+			self.btn_createDir.clicked.connect(self.createDir)
+			self.btn_Cancell_createDir.clicked.connect(self.disableFolderEdit)
 			
 	def setStatus(self):
 		if self.ftpClient.isError:
@@ -89,9 +93,10 @@ class clientUI_Interface(Ui_ClientUI):
 		
 	def uploadFile(self):
 		local_index = self.localDir_treeView.currentIndex()
-		file_path = self.localModel.filePath(local_index)
-		print("Upload file : " + file_path)
+		file_name = self.localModel.fileName(local_index)
 		
+		self.ftpClient.upload_file(file_name)
+		print("Upload file : " + file_name)
 		
 	def remoteMenu(self):
 		remote_menu = QtWidgets.QMenu()
@@ -102,7 +107,7 @@ class clientUI_Interface(Ui_ClientUI):
 		fileDownload = remote_menu.addAction("Delete")
 		fileDownload.triggered.connect(self.deleteFile)
 		fileDownload = remote_menu.addAction("New Folder")
-		fileDownload.triggered.connect(self.createDir)
+		fileDownload.triggered.connect(self.enableFolderEdit)
 		cursor = QtGui.QCursor()
 		remote_menu.exec_(cursor.pos())
 		
@@ -119,24 +124,30 @@ class clientUI_Interface(Ui_ClientUI):
 					self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
 					self.status_label.setText(str("Cant delete File"))
 					return
-	def filenamePopUp(self):
-		#pop = QtWidgets.QApplication(sys.argv)
-		#popupWindow = QtWidgets.QMainWindow()
-		#popprog = Ui_CreateDirectoryWindow()
-		#popprog.show()
-		#sys.exit(pop.exec_())
-		#name = 'popUp'
-		#name = item.text()
-		self.exPopup = Ui_CreateDirectoryWindow()
-		#self.exPopup.setGeometry(100, 200, 100, 100)
-		self.exPopup.show()
+					
+	def enableFolderEdit(self):
+		self.dirName_lineEdit.setEnabled(True)
+		self.btn_createDir.setEnabled(True)
+		self.btn_Cancell_createDir.setEnabled(True)
+		self.btn_refreshRemoteDir.setEnabled(False)
+		self.remoteDir_tableWidget.setEnabled(False)
+		
+	def disableFolderEdit(self):
+		self.btn_Cancell_createDir.setEnabled(False)
+		self.dirName_lineEdit.setEnabled(False)
+		self.btn_createDir.setEnabled(False)
+		self.btn_refreshRemoteDir.setEnabled(True)
+		self.remoteDir_tableWidget.setEnabled(True)
 		
 	def createDir(self):
-		self.filenamePopUp()
-		print("create file")
+		self.dirName_lineEdit.setFocus()
+		directoryName = str(self.dirName_lineEdit.text())
+		self.dirName_lineEdit.clear()
+		self.ftpClient.directory_create(directoryName)
+		self.disableFolderEdit()
+		self.refreshRemote()
 		return
-		
-		
+
 	def addPath(self,filename):
 		self.ftpClient.directory_print()
 		print(self.ftpClient.serverDir)
@@ -251,23 +262,12 @@ class clientUI_Interface(Ui_ClientUI):
 			self.ftpClient.logout()
 			self.Quit_pushButton.setEnabled(False)
 			self.btn_refreshRemoteDir.setEnabled(False)
+			self.remoteDir_tableWidget.clear()
 			self.remoteDir_tableWidget.setEnabled(False)
 			self.connect_pushButton.setEnabled(True)
 			self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
 			self.status_label.setText(str("Offline"))
 			
-class examplePopup(QWidget):
-	def __init__(self, name):
-		super().__init__()
-
-		self.name = name
-
-		self.initUI()
-
-	def initUI(self):
-		lblName = QtWidgets.QLabel(self.name, self)
-		
-		
 if __name__ == '__main__':
 
 	app = QtWidgets.QApplication(sys.argv)

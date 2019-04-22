@@ -310,8 +310,8 @@ class FTPClient:
 	def upload_file(self, file_Name):
 		
 		
-		if os.path.isfile(file_name):
-			self.data_socket = self.dataConnection()
+		if os.path.isfile(file_Name):
+			self.dataConnection()
 			
 			command  = 'STOR ' + file_Name + '\r\n' 
 			self.send_command( command)

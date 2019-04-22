@@ -126,11 +126,19 @@ class FTPServer (threading.Thread):
 		# Try remove a directory
 		reply = ""
 		if os.path.exists(directory):
-			try:
-				shutil.rmtree(directory)
-				reply = "250 directory " + directory + " is removed\r\n"
-			except OSError:
-				reply = "500 error while removing  the directory\r\n"
+			if os.path.isdir(directory):
+				try:
+					shutil.rmtree(directory)
+					reply = "250 directory " + directory + " is removed\r\n"
+				except OSError:
+					reply = "500 error while removing  the directory\r\n"
+			elif os.path.isfile(directory): 
+				try:
+					os.remove(directory)
+					reply = "250 file " + directory + " is removed\r\n"
+				except OSError:
+					reply = "500 error while removing  the file\r\n"
+			
 		else:
 			reply = "550 Requested action not taken. File/Directory unavailable\r\n"
 			
@@ -323,7 +331,7 @@ def main():
 	host_port 	= 21
 	host_adress = (host_name, host_port)
 	print("Host : ", host_name, " port : ", host_port)
-	
+	homeDir =os.getcwd()
 	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	server_socket.bind(host_adress)
 	
@@ -332,7 +340,6 @@ def main():
 		
 		server_socket.listen(1)
 		connection_socket, client_address = server_socket.accept()
-		homeDir =os.getcwd()
 		clientHandler = FTPServer( connection_socket, client_address, clientList,homeDir )
 		clientHandler.start()
 		
