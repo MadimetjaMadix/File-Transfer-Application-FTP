@@ -9,10 +9,11 @@ import random
 import threading
 
 class FTPServer (threading.Thread):
-	def __init__(self, connection_socket, client_address, DataBase):
+	def __init__(self, connection_socket, client_address, DataBase,homeDir ):
 		threading.Thread.__init__(self)
 		self.user = ' '
-		self.cwd  = os.getcwd()                                        #current Working Directory
+		self.cwd  = homeDir                                        #current Working Directory
+		self.homeDir = homeDir
 		self.dataBase = DataBase
 		self.validUser = False
 		self.commandConn = connection_socket
@@ -103,12 +104,16 @@ class FTPServer (threading.Thread):
 		reply = "200 Type set to " + self.dataType +"\r\n"
 		self.send_response(reply)
 		
-	def CDUP(self):
+	def CDUP(self, path = ".."):
 		# Try to go up one directory
-		os.chdir("..")
-		self.cwd  = os.getcwd()
-		reply = "200 current working directry is " + self.cwd +"\r\n"
-		self.send_response(reply)
+		if os.path.exists(path) or not  self.homeDir == os.getcwd():
+			os.chdir(path)
+			self.cwd  = os.getcwd()
+			reply = "200 current working directry is " + self.cwd +"\r\n"
+			self.send_response(reply)
+		else:
+			reply = "550 Requested action not taken. File/Directory unavailable\r\n"
+			self.send_response(reply)
 		
 	def MKD(self, directory):
 		# Try make new directory
@@ -133,10 +138,9 @@ class FTPServer (threading.Thread):
 		
 	def CWD(self, path):
 		# Try change the current working directry
-		newPath = self.cwd + '/' + str(path)
-		if os.path.exists(newPath):
+		if os.path.exists(path):
 			reply = '250 Requested file action okay, completed.\r\n'
-			os.chdir(newPath)
+			os.chdir(path)
 			self.cwd = os.getcwd()
 		else:
 			reply = '550 Requested action not taken. File/Directory unavailable\r\n'
@@ -144,7 +148,7 @@ class FTPServer (threading.Thread):
 		self.send_response(reply)
 	
 	def PWD(self):
-		reply = "257 " + ' "' + self.cwd + '" ' + " is the current working directry\r\n"
+		reply = "257 " + self.cwd + "\r\n"
 		self.send_response(reply)
 	
 	def LIST(self):
@@ -242,8 +246,9 @@ class FTPServer (threading.Thread):
 			reading = file.read(self.dataBufferSize)
 			
 			print("Accessing file: ", filename)
+			print("Reading file ...")
 			while reading:
-				print("Reading file ...")
+				
 				if not self.ActiveMode:
 					data_socket.send(reading)
 				else:
@@ -297,6 +302,7 @@ class FTPServer (threading.Thread):
 		
 	def QUIT(self):
 		# Disable the command socket connection
+		os.chdir(self.homeDir)
 		self.isconnectionActive = False
 		reply = "221 Goodbye\r\n"
 		self.send_response(reply)
@@ -326,8 +332,8 @@ def main():
 		
 		server_socket.listen(1)
 		connection_socket, client_address = server_socket.accept()
-		
-		clientHandler = FTPServer( connection_socket, client_address, clientList)
+		homeDir =os.getcwd()
+		clientHandler = FTPServer( connection_socket, client_address, clientList,homeDir )
 		clientHandler.start()
 		
 if __name__ == '__main__':

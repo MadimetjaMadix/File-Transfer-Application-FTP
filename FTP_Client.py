@@ -23,6 +23,7 @@ class FTPClient:
 		self.server_response = ""
 		self.isError = False
 		self.ListInDir = []
+		self.serverDir = ''
 		self.ErrorCodes = ['530', '500', '501', '421', '403', '550']
 	#_____________________________________________________________________
 	# Function to initialize a TCP to the server
@@ -103,14 +104,13 @@ class FTPClient:
 					file_data = self.data_socket.recv(self.bufferSize).decode('utf-8').rstrip()
 		if not self.isActive:
 			self.data_socket.close()
-		print(self.ListInDir)
+		#print(self.ListInDir)
 		response = self.recv_command()
 		
 	def modifyListDetails(self,listData):
 		'''
 			modifyListDetails 
 		'''
-		print(listData)
 		filePermission = 0
 		filenameIndex  = 8
 		fileSizeIndex  = 4
@@ -119,14 +119,16 @@ class FTPClient:
 		
 		# Split into columns:
 		temp = listData.split()
-
 		# Select file name:
 		filename = ' '.join(temp[filenameIndex:])
-		
 		# Select file size:
-		fileSize = float(' '.join(temp[fileSizeIndex:fileSizeIndex+1]))
-		tempFileSize = self.processFileSize(fileSize)
-		fileSize = str(tempFileSize[0])+' '+tempFileSize[1] 
+		fileSize = None
+		try:
+			fileSize = float(' '.join(temp[fileSizeIndex:fileSizeIndex+1]))
+			tempFileSize = self.processFileSize(fileSize)
+			fileSize = str(tempFileSize[0])+' '+tempFileSize[1] 
+		except:
+			print("error on ",fileSizeIndex)
 	
 		# Select last modified details:
 		lastModified = ' '.join(temp[fileLastModifiedIndexFirst:fileLastModifiedIndexLast])
@@ -183,9 +185,30 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to go up a directory in the server
 	def directory_return(self):
-		command = 'CDUP\r\n'
+		print(self.serverDir)
+		path = ".."
+		try:
+			pathIndex = self.serverDir.rfind("/", 1)
+			path = self.serverDir[:pathIndex+1]
+			print(path)
+		except:
+			print(" ")
+		command = 'CDUP ' + path +'\r\n'
 		self.send_command( command)
 		response = self.recv_command()
+	#_____________________________________________________________________
+	# Function to go up a directory in the server
+	def directory_print(self):
+		command = 'PWD\r\n'
+		self.send_command( command)
+		response = self.recv_command()
+		self.serverDir = response[1]
+		
+		indexFirstElement 	   = response[1].find('"')
+		indexLastElement  	   = response[1].rfind('"')
+	
+		if indexFirstElement!=-1 and indexLastElement!=-1:
+			self.serverDir   = self.serverDir[indexFirstElement+1:indexLastElement]
 	#_____________________________________________________________________
 	# Function to create a folder on the server
 	def directory_create(self, directory):
@@ -299,7 +322,6 @@ class FTPClient:
 			uploadFile   = open(file_Name, 'rb')
 			reading_data = uploadFile.read(self.bufferSize) 
 			while reading_data:
-				print(reading_data)
 				self.data_socket.send(reading_data)
 				reading_data = uploadFile.read(self.bufferSize) 
 			

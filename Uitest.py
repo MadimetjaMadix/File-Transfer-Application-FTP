@@ -13,19 +13,33 @@ from FTP_Client import FTPClient
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileSystemModel, QTreeView, QWidget, QHBoxLayout, QApplication
 from ClientUI import Ui_ClientUI
+from popUp import Ui_CreateDirectoryWindow
 
 class clientUI_Interface(Ui_ClientUI):
 	def __init__(self, ftpClientUIMain, ftpClient):
 			Ui_ClientUI.__init__(self)
 			self.setupUi(ftpClientUIMain)
 			self.ftpClient = ftpClient
+			self.localDir_treeView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+			self.localDir_treeView.customContextMenuRequested.connect(self.localMenu)
 			
+			self.remoteDir_tableWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+			self.remoteDir_tableWidget.customContextMenuRequested.connect(self.remoteMenu)
+			
+			#-----------------remote-------------------
 			self.progressBar.hide()
 			self.Quit_pushButton.setEnabled(False)
+			self.btn_refreshRemoteDir.setEnabled(False)
+			self.remoteDir_tableWidget.setEnabled(False)
+			self.updateServerDirectoryList()
+			#-----------------Local-------------------
 			self.populateLocalDir()
+			
 			#---------------------------------
 			self.connect_pushButton.clicked.connect(self.connectToServer)
 			self.Quit_pushButton.clicked.connect(self.quit)
+			self.btn_refreshRemoteDir.clicked.connect(self.refreshRemote)
+			self.btn_RefreshLocalDir.clicked.connect(self.refreshLocal)
 			
 	def setStatus(self):
 		if self.ftpClient.isError:
@@ -45,6 +59,10 @@ class clientUI_Interface(Ui_ClientUI):
 			self.Quit_pushButton.setEnabled(True)
 			self.connect_pushButton.setEnabled(False)
 			self.connect_pushButton.setText("Connect")
+			self.btn_refreshRemoteDir.setEnabled(True)
+			self.remoteDir_tableWidget.setEnabled(True)
+			self.ftpClient.getDirList()
+			self.updateServerDirectoryList()
 		
 	def loginToServer(self):
 		if self.ftpClient.IsConnected:
@@ -56,18 +74,200 @@ class clientUI_Interface(Ui_ClientUI):
 			
 	def populateLocalDir(self):
 		
-		Model = QFileSystemModel()
-		Model.setRootPath(QtCore.QDir.rootPath())
-		self.localDir_treeView.setModel(Model)
-		self.localDir_treeView.setRootIndex(Model.index(r"C:\Users\sethosam\Documents\Networks"))
+		self.localModel = QFileSystemModel()
+		self.localModel.setRootPath(QtCore.QDir.rootPath())
+		self.localDir_treeView.setModel(self.localModel)
+		self.localDir_treeView.setRootIndex(self.localModel.index(r"C:\Users\sethosam\Documents\Networks"))
+		self.localDir_treeView.setSortingEnabled(True)
+		
+	def localMenu(self):
+		local_menu = QtWidgets.QMenu()
+		fileUpload = local_menu.addAction("Upload")
+		fileUpload.triggered.connect(self.uploadFile)
+		cursor = QtGui.QCursor()	#privide a cursor location
+		local_menu.exec_(cursor.pos())	# pass it to the menu executor
+		
+	def uploadFile(self):
+		local_index = self.localDir_treeView.currentIndex()
+		file_path = self.localModel.filePath(local_index)
+		print("Upload file : " + file_path)
+		
+		
+	def remoteMenu(self):
+		remote_menu = QtWidgets.QMenu()
+		fileDownload = remote_menu.addAction("Download")
+		fileDownload.triggered.connect(self.downloadFile)
+		fileDownload = remote_menu.addAction("Open")
+		fileDownload.triggered.connect(self.openFolder)
+		fileDownload = remote_menu.addAction("Delete")
+		fileDownload.triggered.connect(self.deleteFile)
+		fileDownload = remote_menu.addAction("New Folder")
+		fileDownload.triggered.connect(self.createDir)
+		cursor = QtGui.QCursor()
+		remote_menu.exec_(cursor.pos())
+		
+	def deleteFile(self):
+		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
+			if currentQTableWidgetRow.row()!=0:
+				try:
+					filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+					self.ftpClient.download_file(filename)
+					path = self.addPath(filename)
+					self.ftpClient.directory_delete(path)
+					self.refreshRemote()
+				except:
+					self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
+					self.status_label.setText(str("Cant delete File"))
+					return
+	def filenamePopUp(self):
+		#pop = QtWidgets.QApplication(sys.argv)
+		#popupWindow = QtWidgets.QMainWindow()
+		#popprog = Ui_CreateDirectoryWindow()
+		#popprog.show()
+		#sys.exit(pop.exec_())
+		#name = 'popUp'
+		#name = item.text()
+		self.exPopup = Ui_CreateDirectoryWindow()
+		#self.exPopup.setGeometry(100, 200, 100, 100)
+		self.exPopup.show()
+		
+	def createDir(self):
+		self.filenamePopUp()
+		print("create file")
+		return
+		
+		
+	def addPath(self,filename):
+		self.ftpClient.directory_print()
+		print(self.ftpClient.serverDir)
+		self.ftpClient.serverDir = self.ftpClient.serverDir.replace('\r\n', '')
+		s = '/'
+		path = self.ftpClient.serverDir + s + filename
+		path = [self.ftpClient.serverDir,str(filename)]
+		path = '/'.join(path)
+		return path
+	def openFolder(self):
+		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
+			if currentQTableWidgetRow.row()!=0:
+				try:
+					filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+					permission = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 3).text()
+					if permission.find('d') is not -1:
+						path = self.addPath(filename)
+						print('path :',path)
+						self.ftpClient.directory_change(path)
+						self.refreshRemote()
+					else:
+						self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
+						self.status_label.setText(str("Cant open file, Download instead"))
+				except:
+					self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
+					self.status_label.setText(str("Cant open file, Download instead"))
+					
+			else:
+				self.ftpClient.directory_return()
+				self.ftpClient.directory_print()
+				self.refreshRemote()
+		
+	def downloadFile(self):
+		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
+			if currentQTableWidgetRow.row()!=0:
+				try:
+					filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+					self.ftpClient.download_file(filename)
+				except:
+					self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
+					self.status_label.setText(str("Cant downloadFile, Try open instead"))
+					return
+			else:
+				self.ftpClient.directory_return()
+				self.ftpClient.directory_print()
+				self.refreshRemote()
+		
+	def updateServerDirectoryList(self):
+		
+		
+		try:
+			self.remoteDir_tableWidget.setRowCount(0)
+			
+			# set column count
+			self.remoteDir_tableWidget.setColumnCount(4)
+			
+			# Set Row Count:
+			self.remoteDir_tableWidget.setRowCount(len(self.ftpClient.ListInDir)+1)
+			# Default:
+			self.remoteDir_tableWidget.setItem(0,0, QtWidgets.QTableWidgetItem(".."))
+			#self.remoteDir_tableWidget.setColumnWidth(0, 230)
+			header = self.remoteDir_tableWidget.horizontalHeader()
+			header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+			header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
+			header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
+			
+			row = 1
+			col = 0
+			for item in self.ftpClient.ListInDir:
+				#print(item)
+				for fileProperty in item:
+					fileTypeIco = None
+					if col==0:
+						if item[3].find('x') is -1:
+							tempFilename = fileProperty.lower()
+							if tempFilename.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
+								fileTypeIco = "assets/image.ico"
+							elif tempFilename.endswith(('.mp4', '.wmv', '.mkv', '.avi')):
+								fileTypeIco = "assets/video.ico"
+							else:
+								fileTypeIco = "assets/file.ico"
+						else:
+							fileTypeIco = "assets/folder.ico"
+					
+					tempItem = QtWidgets.QTableWidgetItem(QtGui.QIcon(QtGui.QPixmap(fileTypeIco)), fileProperty)
+					self.remoteDir_tableWidget.setItem(row,col, tempItem)
+					col = col+1
+				row = row+1
+				col = 0
+			self.remoteDir_tableWidget.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem("Name"))
+			self.remoteDir_tableWidget.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem("Size"))
+			self.remoteDir_tableWidget.setHorizontalHeaderItem(2, QtWidgets.QTableWidgetItem("Last Modified"))
+			self.remoteDir_tableWidget.setHorizontalHeaderItem(3, QtWidgets.QTableWidgetItem("Permissions"))
+			self.remoteDir_tableWidget.setSelectionBehavior(QtWidgets.QTableView.SelectRows)
+			#self.remoteDir_tableWidget.setShowGrid(False)
+			#self.updateServerDirectoryList()
+		
+			
+		except:
+			self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
+			self.status_label.setText(str("Unable to update Server Directory."))
+	def refreshRemote(self):
+		if self.ftpClient.IsConnected:
+			self.ftpClient.getDirList()
+			self.updateServerDirectoryList()
+	
+	def refreshLocal(self):
+		self.populateLocalDir()
 		
 	def quit(self):
 		if self.ftpClient.IsConnected:
 			self.ftpClient.logout()
 			self.Quit_pushButton.setEnabled(False)
+			self.btn_refreshRemoteDir.setEnabled(False)
+			self.remoteDir_tableWidget.setEnabled(False)
 			self.connect_pushButton.setEnabled(True)
 			self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
 			self.status_label.setText(str("Offline"))
+			
+class examplePopup(QWidget):
+	def __init__(self, name):
+		super().__init__()
+
+		self.name = name
+
+		self.initUI()
+
+	def initUI(self):
+		lblName = QtWidgets.QLabel(self.name, self)
+		
+		
 if __name__ == '__main__':
 
 	app = QtWidgets.QApplication(sys.argv)
