@@ -104,7 +104,7 @@ class FTPClient:
 					file_data = self.data_socket.recv(self.bufferSize).decode('utf-8').rstrip()
 		if not self.isActive:
 			self.data_socket.close()
-		#print(self.ListInDir)
+		print(self.ListInDir)
 		response = self.recv_command()
 		
 	def modifyListDetails(self,listData):
@@ -379,16 +379,16 @@ def main():
 		
 		#client.directory_delete("New")
 		client.getDirList()
-		#file_Name = input(str("Enter the name of the file you want to download : "))
+		file_Name = input(str("Enter the name of the file you want to download : "))
 		
-		#client.download_file(file_Name)
+		client.download_file(file_Name)
 		
 		print("======================================================")
 
-		#client.getDirList()
+		client.getDirList()
 		
-		#file_Name = input(str("Enter the name of the file you want to upload : "))
-		#client.upload_file(file_Name)
+		file_Name = input(str("Enter the name of the file you want to upload : "))
+		client.upload_file(file_Name)
 		
 	client.logout()
 	

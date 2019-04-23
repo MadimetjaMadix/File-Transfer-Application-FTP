@@ -38,7 +38,7 @@ class FTPServer (threading.Thread):
 			if not self.isconnectionActive:
 				break
 			
-			available_commands = ['USER', 'PASS', 'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'PWD', 'CWD', 'LIST', 'CDUP', 'MKD', 'RMD' ]
+			available_commands = ['USER', 'PASS', 'DELE' ,'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'PWD', 'CWD', 'LIST', 'CDUP', 'MKD', 'RMD' ]
 			
 			client_message = self.commandConn.recv(self.cmdBufferSize).decode()
 			print("Client : ", client_message)
@@ -59,7 +59,7 @@ class FTPServer (threading.Thread):
 				self.send_response(reply)
 				
 	
-				
+#begin User		
 	def USER(self, username = 'user'):
 		
 		file = open(self.dataBase, 'r')
@@ -74,14 +74,16 @@ class FTPServer (threading.Thread):
 				self.validUser = True
 				
 				reply = "331 password required for " + self.user + "\r\n"
-				self.send_response(reply)				
+				self.send_response(reply)
 				return
 				
 		if not self.validUser:
 			reply = "530 Invalid User\r\n"
 			self.send_response(reply)
 		
-		
+#end User
+
+#begin Passive
 	def PASS(self, password = 'pass'):
 		file = open(self.dataBase, 'r')
 		data = file.readlines()
@@ -97,13 +99,17 @@ class FTPServer (threading.Thread):
 				else:
 					reply = "500 Invalid password\r\n"
 		self.send_response(reply)
-		
+#end Passive
+
+#begin Representation Type 
 	def TYPE(self,dataType):
 		# set the data transfer type to ASCII(A) or Binary(I)
 		self.dataType = dataType
 		reply = "200 Type set to " + self.dataType +"\r\n"
 		self.send_response(reply)
-		
+#end Representation Type 
+
+#begin Change to Parent Directory  
 	def CDUP(self, path = ".."):
 		# Try to go up one directory
 		if os.path.exists(path) or not  self.homeDir == os.getcwd():
@@ -114,36 +120,51 @@ class FTPServer (threading.Thread):
 		else:
 			reply = "550 Requested action not taken. File/Directory unavailable\r\n"
 			self.send_response(reply)
-		
+#end Change to Parent Directory
+
+#begin Make directory
 	def MKD(self, directory):
 		# Try make new directory
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 		reply = "257 directory " + directory + " is created\r\n"
 		self.send_response(reply)
+#end Make directory
 		
-	def RMD (self,directory):
+#begin Remove directory
+	def RMD (self,filename):
 		# Try remove a directory
 		reply = ""
-		if os.path.exists(directory):
-			if os.path.isdir(directory):
+		if os.path.exists(filename):
+			if os.path.isdir(filename):
 				try:
-					shutil.rmtree(directory)
-					reply = "250 directory " + directory + " is removed\r\n"
-				except OSError:
-					reply = "500 error while removing  the directory\r\n"
-			elif os.path.isfile(directory): 
-				try:
-					os.remove(directory)
-					reply = "250 file " + directory + " is removed\r\n"
+					shutil.rmtree(filename)
+					reply = "250 file " + filename + " is removed\r\n"
 				except OSError:
 					reply = "500 error while removing  the file\r\n"
-			
 		else:
-			reply = "550 Requested action not taken. File/Directory unavailable\r\n"
+			reply = "550 Requested action not taken. Directory unavailable\r\n"
 			
 		self.send_response(reply)
+#end Remove directory
 		
+#begin delete
+	def DELE (self, pathname):
+	# Try remove a file
+		reply = ""
+		if os.path.exists(pathname):
+			if os.path.isfile(pathname): 
+				try:
+					os.remove(pathname)
+					reply = "250 file " + pathname + " is removed\r\n"
+				except OSError:
+					reply = "500 error while removing  the file\r\n"
+		else:
+			reply = "550 Requested action not taken. File unavailable\r\n"
+		self.send_response(reply)
+#end delete
+
+#begin Change working directory
 	def CWD(self, path):
 		# Try change the current working directry
 		if os.path.exists(path):
@@ -154,11 +175,15 @@ class FTPServer (threading.Thread):
 			reply = '550 Requested action not taken. File/Directory unavailable\r\n'
 		
 		self.send_response(reply)
-	
+#end Change working directory
+
+#begin Print working directory
 	def PWD(self):
 		reply = "257 " + self.cwd + "\r\n"
 		self.send_response(reply)
-	
+#end Print working directory
+
+#begin List
 	def LIST(self):
 		
 		reply = "125 List being send to Dataconnection\r\n"
@@ -180,7 +205,9 @@ class FTPServer (threading.Thread):
 			
 		reply = "200 Listing completed\r\n"
 		self.send_response(reply)
-		
+#end List
+
+#begin Passive
 	def PASV(self):
 		# Passive connection_socket, Disable Active mode
 		self.ActiveMode = False
@@ -208,7 +235,9 @@ class FTPServer (threading.Thread):
 		
 			reply = "425 Cannot open Data Connection\r\n"
 			self.send_response(reply)
+#end Passive
 			
+#begin Data port		
 	def PORT(self, data_address):
 		# Active mode connection
 		self.ActiveMode = True
@@ -234,9 +263,23 @@ class FTPServer (threading.Thread):
 		
 			reply = "425 Cannot open Data Connection\r\n"
 			self.send_response(reply)
+#end Data port
 			
-
+#begin Retrive 
 	def RETR(self, file_name):
+		reply = ""
+		try:
+			clientThread = Thread(target=Download, args=(file_name))
+			clientThread.start()
+			clientThread.join()
+		except Exception:
+			print("Error while creating a thread")
+			reply = "550 request action not taken"
+		self.send_response(reply)
+#end Retrive
+
+#Begin Download
+	def Download (self, file_name):
 		# returns data to the client.
 		reply = ""
 		if os.path.isfile(file_name):
@@ -273,23 +316,38 @@ class FTPServer (threading.Thread):
 			reply = "550 The system cannot find the file specified.\r\n"
 			
 		self.send_response(reply)
+#end downloading
 		
+#begin Store
 	def STOR(self, filename):
-		# STORES data on the server
-		reply = "150 File status okay; about to open data connection\r\n"
+		reply = ""
+		try:
+			clientThread = Thread(target=Upload, args=(file_name))
+			clientThread.start()
+			clientThread.join()
+		except Exception:
+			print("Error while creating a thread")
+			reply = "550 request action not taken"
 		self.send_response(reply)
+#end Store
+
+#beging Upload
+		def Upload (self, filename):
+		# STORES data on the server
+			reply = "150 File status okay; about to open data connection\r\n"
+			self.send_response(reply)
 		
-		if not self.ActiveMode:
-			data_socket, data_address = self.dataConn.accept()
+			if not self.ActiveMode:
+				data_socket, data_address = self.dataConn.accept()
 		
-		filename = filename.replace('.','1.')
+			filename = filename.replace('.','1.')
 		
-		file_name = self.cwd + '/' + filename
-		file = open(file_name, 'wb')
-		if not self.ActiveMode:
-			file_data = data_socket.recv(self.dataBufferSize)
-		else:
-			file_data = self.dataConn.recv(self.dataBufferSize)
+			file_name = self.cwd + '/' + filename
+			file = open(file_name, 'wb')
+			if not self.ActiveMode:
+				file_data = data_socket.recv(self.dataBufferSize)
+			else:
+				file_data = self.dataConn.recv(self.dataBufferSize)
 			
 		while file_data:
 			
@@ -307,7 +365,9 @@ class FTPServer (threading.Thread):
 		reply = "226 Closing data connection. Requested transfer action successful\r\n"
 		self.send_response(reply)
 		return
+#end Upload
 		
+#begin Logout
 	def QUIT(self):
 		# Disable the command socket connection
 		os.chdir(self.homeDir)
@@ -315,14 +375,16 @@ class FTPServer (threading.Thread):
 		reply = "221 Goodbye\r\n"
 		self.send_response(reply)
 		self.commandConn.close()
-		
+#end Logout
+
+#begin Establish_data_conn
 	def Establish_data_conn(self, host_adress):
 		# Establish a TCP connection
 		data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		data_socket.bind(host_adress)
 		data_socket.listen(1)
 		return data_socket
-
+#end Establish_data_conn
 
 def main():
 	
