@@ -6,7 +6,8 @@ import datetime
 import string
 import socket
 import random
-import threading
+import threading 
+from threading import Thread
 
 class FTPServer (threading.Thread):
 	def __init__(self, connection_socket, client_address, DataBase,homeDir ):
@@ -269,7 +270,7 @@ class FTPServer (threading.Thread):
 	def RETR(self, file_name):
 		reply = ""
 		try:
-			clientThread = Thread(target=Download, args=(file_name))
+			clientThread = Thread(target=(self.retriveFile), args=(file_name,))
 			clientThread.start()
 			clientThread.join()
 		except Exception:
@@ -279,7 +280,7 @@ class FTPServer (threading.Thread):
 #end Retrive
 
 #Begin Download
-	def Download (self, file_name):
+	def retriveFile(self, file_name):
 		# returns data to the client.
 		reply = ""
 		if os.path.isfile(file_name):
@@ -322,7 +323,7 @@ class FTPServer (threading.Thread):
 	def STOR(self, filename):
 		reply = ""
 		try:
-			clientThread = Thread(target=Upload, args=(file_name))
+			clientThread = Thread(target=(self.storeFile), args=(filename,))
 			clientThread.start()
 			clientThread.join()
 		except Exception:
@@ -332,23 +333,23 @@ class FTPServer (threading.Thread):
 #end Store
 
 #beging Upload
-		def Upload (self, filename):
-		# STORES data on the server
-			reply = "150 File status okay; about to open data connection\r\n"
-			self.send_response(reply)
+	def storeFile(self, filename):
+	# STORES data on the server
+		reply = "150 File status okay; about to open data connection\r\n"
+		self.send_response(reply)
+	
+		if not self.ActiveMode:
+			data_socket, data_address = self.dataConn.accept()
+	
+		filename = filename.replace('.','1.')
+	
+		file_name = self.cwd + '/' + filename
+		file = open(file_name, 'wb')
+		if not self.ActiveMode:
+			file_data = data_socket.recv(self.dataBufferSize)
+		else:
+			file_data = self.dataConn.recv(self.dataBufferSize)
 		
-			if not self.ActiveMode:
-				data_socket, data_address = self.dataConn.accept()
-		
-			filename = filename.replace('.','1.')
-		
-			file_name = self.cwd + '/' + filename
-			file = open(file_name, 'wb')
-			if not self.ActiveMode:
-				file_data = data_socket.recv(self.dataBufferSize)
-			else:
-				file_data = self.dataConn.recv(self.dataBufferSize)
-			
 		while file_data:
 			
 			file.write(file_data)

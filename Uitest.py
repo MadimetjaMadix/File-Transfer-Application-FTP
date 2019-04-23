@@ -51,7 +51,8 @@ class clientUI_Interface(Ui_ClientUI):
 			self.status_label.setText(str(self.ftpClient.server_response))
 		else:
 			self.status_label.setStyleSheet('color: blue; font-family:Times New Roman; font-size: 11pt')
-		
+		statThread = Thread(target = self.updateStatus )
+		statThread.run()
 		
 	def connectToServer(self):
 		if not self.ftpClient.IsConnected:
@@ -97,6 +98,7 @@ class clientUI_Interface(Ui_ClientUI):
 		
 		self.ftpClient.upload_file(file_name)
 		print("Upload file : " + file_name)
+		self.setStatus()
 		
 	def remoteMenu(self):
 		remote_menu = QtWidgets.QMenu()
@@ -116,10 +118,16 @@ class clientUI_Interface(Ui_ClientUI):
 			if currentQTableWidgetRow.row()!=0:
 				try:
 					filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
-					self.ftpClient.download_file(filename)
-					path = self.addPath(filename)
-					self.ftpClient.directory_delete(path)
-					self.refreshRemote()
+					permission = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 3).text()
+					if permission.find('d') is not -1:
+						path = self.addPath(filename)
+						self.ftpClient.directory_delete(path)
+						self.refreshRemote()
+						self.setStatus()
+					else:
+						path = self.addPath(filename)
+						self.ftpClient.file_delete(path)
+						self.refreshRemote()
 				except:
 					self.status_label.setStyleSheet('color: red; font-family:Times New Roman')
 					self.status_label.setText(str("Cant delete File"))
@@ -145,6 +153,7 @@ class clientUI_Interface(Ui_ClientUI):
 		self.dirName_lineEdit.clear()
 		self.ftpClient.directory_create(directoryName)
 		self.disableFolderEdit()
+		self.setStatus()
 		self.refreshRemote()
 		return
 
@@ -194,7 +203,7 @@ class clientUI_Interface(Ui_ClientUI):
 				self.ftpClient.directory_return()
 				self.ftpClient.directory_print()
 				self.refreshRemote()
-		
+		self.setStatus()
 	def updateServerDirectoryList(self):
 		
 		
@@ -257,6 +266,10 @@ class clientUI_Interface(Ui_ClientUI):
 	def refreshLocal(self):
 		self.populateLocalDir()
 		
+	def updateStatus(self):
+		time.sleep(2)
+		self.status_label.setStyleSheet('color: blue; font-family:Times New Roman')
+		self.status_label.setText(str("Online"))
 	def quit(self):
 		if self.ftpClient.IsConnected:
 			self.ftpClient.logout()

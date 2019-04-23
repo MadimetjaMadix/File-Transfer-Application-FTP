@@ -24,7 +24,7 @@ class FTPClient:
 		self.isError = False
 		self.ListInDir = []
 		self.serverDir = ''
-		self.ErrorCodes = ['530', '500', '501', '421', '403', '550']
+		self.ErrorCodes = ['530', '500', '501', '421', '403', '550', '503']
 	#_____________________________________________________________________
 	# Function to initialize a TCP to the server
 	def initializeFTPConnection(self, host_name):
@@ -216,6 +216,12 @@ class FTPClient:
 		self.send_command( command)
 		response = self.recv_command()
 	#_____________________________________________________________________
+	# Function to delete a file
+	def file_delete(self, filename):
+		command = 'DELE ' + filename + '\r\n'
+		self.send_command( command)
+		response = self.recv_command()
+	#_____________________________________________________________________
 	# Function to delete a folder on the server
 	def directory_delete(self, directory):
 		command = 'RMD ' + directory + '\r\n'
@@ -309,7 +315,7 @@ class FTPClient:
 	# Function to upload a file to the server's current directory
 	def upload_file(self, file_Name):
 		
-		
+		print(file_Name)
 		if os.path.isfile(file_Name):
 			self.dataConnection()
 			
@@ -317,17 +323,19 @@ class FTPClient:
 			self.send_command( command)
 			response = self.recv_command()
 			
-			file_Name = os.getcwd() + '/'+ file_Name
-			
-			uploadFile   = open(file_Name, 'rb')
-			reading_data = uploadFile.read(self.bufferSize) 
-			while reading_data:
-				self.data_socket.send(reading_data)
+			if response[0] not in self.ErrorCodes: 
+				file_Name = os.getcwd() + '/'+ file_Name
+				
+				uploadFile   = open(file_Name, 'rb')
 				reading_data = uploadFile.read(self.bufferSize) 
-			
-			uploadFile.close()
-			self.data_socket.close()
-			response = self.recv_command()
+				while reading_data:
+					self.data_socket.send(reading_data)
+					reading_data = uploadFile.read(self.bufferSize) 
+				
+				uploadFile.close()
+				self.data_socket.close()
+				response = self.recv_command()
+
 		else:
 			print("File selected does not exist")
 			return

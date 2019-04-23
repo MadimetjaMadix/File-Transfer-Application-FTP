@@ -138,5 +138,5 @@ class Ui_ClientUI(object):
         self.btn_RefreshLocalDir.setText(_translate("ClientUI", "Refresh"))
         self.btn_createDir.setText(_translate("ClientUI", "Create"))
         self.label_foldername.setText(_translate("ClientUI", "Folder Name"))
-        self.btn_Cancell_createDir.setText(_translate("ClientUI", "Create"))
+        self.btn_Cancell_createDir.setText(_translate("ClientUI", "Cancel"))
 
