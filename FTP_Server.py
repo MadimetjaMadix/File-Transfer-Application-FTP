@@ -24,7 +24,7 @@ class FTPServer (threading.Thread):
 		self.dataBufferSize = 8192
 		self.isconnectionActive = True
 		self.ActiveMode = False
-		self.dataType = 'A'
+		self.dataType = 'l'
 	
 	def send_response(self,response):
 		print(response)
@@ -266,7 +266,7 @@ class FTPServer (threading.Thread):
 			self.send_response(reply)
 #end Data port
 			
-#begin Retrive 
+#begin Retrive
 	def RETR(self, file_name):
 		reply = ""
 		try:
@@ -278,13 +278,13 @@ class FTPServer (threading.Thread):
 			reply = "550 request action not taken"
 		self.send_response(reply)
 #end Retrive
-
+			
 #Begin Download
 	def retriveFile(self, file_name):
 		# returns data to the client.
 		reply = ""
 		if os.path.isfile(file_name):
-			reply = "150 File status okay; about to open data connection\r\n"
+			reply = "150 opening " + self.dataType + " mode data connection for " + file_name + "(" + str(os.path.getsize(file_name))+ " bytes)\r\n"
 			self.send_response(reply)
 			
 			# check the data connection mode (Active or Passive)

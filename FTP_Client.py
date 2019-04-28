@@ -24,6 +24,8 @@ class FTPClient:
 		self.isError = False
 		self.ListInDir = []
 		self.serverDir = ''
+		self.downloadList = []
+		self.downloadProgres = 0
 		self.ErrorCodes = ['530', '500', '501', '421', '403', '550', '503']
 	#_____________________________________________________________________
 	# Function to initialize a TCP to the server
@@ -298,19 +300,36 @@ class FTPClient:
 		
 		if response[0] not in self.ErrorCodes: 
 			
+			response = response[1]
+			firstBracketIndex = response.find("(")
+			lastBracketIndex  = response.find(")")
+			
+			filesize = response[firstBracketIndex + 1:lastBracketIndex]
+			filesize, bytes = filesize.split(" ", 1)
+			file_Size = int(filesize)
+			
 			file_data = self.data_socket.recv(self.bufferSize)
 			f = open(downloadFolderName + "/" + file_Name, 'wb')
 			
+			temp = 8192
 			while file_data:
+				temp = int(temp/file_Size)*100
+				print(temp)
+				self.downloadProgres = temp
+				
+				temp = temp + 8192
 				f.write(file_data)
 				file_data = self.data_socket.recv(self.bufferSize)
 				
 			f.close()
+			self.downloadList.remove(file_Name)
 		else:
 			return
 		self.data_socket.close()
 		
 		response = self.recv_command()
+	def getProgressVal(self):
+		return self.downloadProgres
 	#_____________________________________________________________________
 	# Function to upload a file to the server's current directory
 	def upload_file(self, file_Name):
