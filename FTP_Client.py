@@ -26,8 +26,9 @@ class FTPClient:
 		self.isError = False
 		self.ListInDir = []
 		self.serverDir = ''
+		self.upLoadList = []
 		self.downloadList = []
-		self.downloadProgres = 0
+		self.progressValue = 0
 		self.ErrorCodes = ['530', '500', '501', '421', '403', '550', '503']
 	#_____________________________________________________________________
 	# Function to initialize a TCP to the server
@@ -192,7 +193,7 @@ class FTPClient:
 		print(self.serverDir)
 		path = ".."
 		try:
-			pathIndex = self.serverDir.rfind("/", 1)
+			pathIndex = self.serverDir.rfind("\\", 1)
 			path = self.serverDir[:pathIndex+1]
 			print(path)
 		except:
@@ -311,18 +312,18 @@ class FTPClient:
 			file_Size = int(filesize)
 			
 			file_data = self.data_socket.recv(self.bufferSize)
-			f = open(downloadFolderName + "/" + file_Name, 'wb')
+			f = open(downloadFolderName + "\\" + file_Name, 'wb')
 			
 			#temp = 8192
 			i = 1
 			while file_data:
 				temp = int(((self.bufferSize*i)/file_Size)*100)
 				DownloadProgres = temp
-				self.downloadProgres = temp
+				self.progressValue = temp
 				if progress_callback!=None:
 					progress_callback.emit()
 				
-				#print(self.downloadProgres)
+				#print(self.progressValue)
 				f.write(file_data)
 				
 				file_data = self.data_socket.recv(self.bufferSize)
@@ -336,29 +337,41 @@ class FTPClient:
 		
 		response = self.recv_command()
 	def getProgressVal(self):
-		return self.downloadProgres
+		return self.progressValue
 	#_____________________________________________________________________
 	# Function to upload a file to the server's current directory
-	def upload_file(self, file_Name):
+	def upload_file(self, file_Name, filepath,   progress_callback=None):
 		
 		print(file_Name)
-		if os.path.isfile(file_Name):
+		print(filepath)
+		if os.path.isfile(filepath):
 			self.dataConnection()
+			fileSize = os.path.getsize(filepath)
 			
 			command  = 'STOR ' + file_Name + '\r\n' 
 			self.send_command( command)
 			response = self.recv_command()
 			
 			if response[0] not in self.ErrorCodes: 
-				file_Name = os.getcwd() + '/'+ file_Name
+				#file_Name = os.getcwd() + '/'+ file_Name
 				
-				uploadFile   = open(file_Name, 'rb')
+				uploadFile   = open(filepath, 'rb')
 				reading_data = uploadFile.read(self.bufferSize) 
+				temp  = self.bufferSize
 				while reading_data:
+					self.progressValue = int((temp/fileSize)*100)
+					
+					if progress_callback!=None:
+						progress_callback.emit()
+					
 					self.data_socket.send(reading_data)
 					reading_data = uploadFile.read(self.bufferSize) 
-				
+					temp = temp + self.bufferSize
+					
 				uploadFile.close()
+				if file_Name in self.upLoadList:
+					self.upLoadList.remove(file_Name)
+				
 				self.data_socket.close()
 				response = self.recv_command()
 

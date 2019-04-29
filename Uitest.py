@@ -54,10 +54,11 @@ class actionHandler(QtCore.QRunnable):
 
 
 class clientUI_Interface(Ui_ClientUI):
-	def __init__(self, ftpClientUIMain, ftpClient):
+	def __init__(self, ftpClientUIMain, ftpClient, homeDir):
 			Ui_ClientUI.__init__(self)
 			self.setupUi(ftpClientUIMain)
 			self.ftpClient = ftpClient
+			self.homeDir = homeDir
 			self.localDir_treeView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 			self.localDir_treeView.customContextMenuRequested.connect(self.localMenu)
 			
@@ -79,7 +80,6 @@ class clientUI_Interface(Ui_ClientUI):
 			#-----------------Local-------------------
 			self.populateLocalDir()
 			self.threadpool = QtCore.QThreadPool()
-			print(self.threadpool)
 			#---------------------------------
 			self.connect_pushButton.clicked.connect(self.connectToServer)
 			self.Quit_pushButton.clicked.connect(self.quit)
@@ -135,7 +135,7 @@ class clientUI_Interface(Ui_ClientUI):
 		self.localModel = QFileSystemModel()
 		self.localModel.setRootPath(QtCore.QDir.rootPath())
 		self.localDir_treeView.setModel(self.localModel)
-		self.localDir_treeView.setRootIndex(self.localModel.index(r"C:\Users\sethosam\Documents\Networks"))
+		self.localDir_treeView.setRootIndex(self.localModel.index(str(self.homeDir)))
 		self.localDir_treeView.setSortingEnabled(True)
 		
 	def localMenu(self):
@@ -147,12 +147,44 @@ class clientUI_Interface(Ui_ClientUI):
 		
 	def uploadFile(self):
 		local_index = self.localDir_treeView.currentIndex()
-		file_name = self.localModel.fileName(local_index)
+		filename = self.localModel.fileName(local_index)
+		filepath = self.localModel.filePath(local_index)
 		
-		self.ftpClient.upload_file(file_name)
-		msg = "Upload file : " + file_name
+		#self.ftpClient.upload_file(filename)
+		
+		self.ftpClient.upLoadList.append(filename)
+		uploadThread = actionHandler(self.ftpClient.upload_file, filename, filepath)
+						
+		uploadThread.signals.finished.connect(self.uploadThreadComplete)
+		uploadThread.signals.error.connect(self.uploadFailed)
+		uploadThread.signals.fileProgress.connect(self.displayUploadProgBar)
+						
+		self.threadpool.start(uploadThread)
+		
+		msg = "Upload file : " + filename
 		self.setSatus(False,msg)
 		self.dispStatus()
+		
+	def uploadFailed(self):
+		print("Upload Failed")
+		
+	def uploadThreadComplete(self):
+		self.setSatus(False,"Done Uploading")
+		self.dispStatus()
+		self.progressBar.hide()
+		self.up_downLoadlabel.setText("")
+		self.progressBar.setEnabled(False)
+		self.btn_refreshRemoteDir.setEnabled(True)
+		self.remoteDir_tableWidget.setEnabled(True)
+		
+	def displayUploadProgBar(self):#, filename)
+		
+		if len(self.ftpClient.upLoadList) is not 0:
+			self.progressBar.show()
+			self.progressBar.setEnabled(True)
+			self.up_downLoadlabel.setText("Uploading file")
+			self.progressBar.setValue(self.ftpClient.getProgressVal())
+		return
 		
 	def remoteMenu(self):
 		remote_menu = QtWidgets.QMenu()
@@ -215,10 +247,10 @@ class clientUI_Interface(Ui_ClientUI):
 		self.ftpClient.directory_print()
 		print(self.ftpClient.serverDir)
 		self.ftpClient.serverDir = self.ftpClient.serverDir.replace('\r\n', '')
-		s = '/'
+		s = '\\'
 		path = self.ftpClient.serverDir + s + filename
 		path = [self.ftpClient.serverDir,str(filename)]
-		path = '/'.join(path)
+		path = '\\'.join(path)
 		return path
 	def openFolder(self):
 		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
@@ -319,6 +351,7 @@ class clientUI_Interface(Ui_ClientUI):
 			self.up_downLoadlabel.setText("Downloading file")
 			self.progressBar.setValue(self.ftpClient.getProgressVal())
 		return
+		
 	def updateCurrentDir(self):
 		self.ftpClient.directory_print()
 		self.remoteDir_lineEdit.setText(str(self.ftpClient.serverDir))
@@ -408,6 +441,7 @@ if __name__ == '__main__':
 	app = QtWidgets.QApplication(sys.argv)
 	ftpClientUIMain = QtWidgets.QMainWindow()
 	ftpClient = FTPClient()
-	prog = clientUI_Interface(ftpClientUIMain, ftpClient)
+	homeDir = os.getcwd()
+	prog = clientUI_Interface(ftpClientUIMain, ftpClient, homeDir)
 	ftpClientUIMain.show()
 	sys.exit(app.exec_())

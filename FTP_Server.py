@@ -16,7 +16,7 @@ class FTPServer (threading.Thread):
 		self.user = ' '
 		self.cwd  = homeDir                                        #current Working Directory
 		self.homeDir = homeDir
-		self.dataBase = DataBase
+		self.dataBase = homeDir + '\\' +DataBase
 		self.validUser = False
 		self.commandConn = connection_socket
 		self.dataConn 	 = None
@@ -112,9 +112,14 @@ class FTPServer (threading.Thread):
 #end Representation Type 
 
 #begin Change to Parent Directory  
-	def CDUP(self, path = ".."):
+	def CDUP(self, path):
 		# Try to go up one directory
-		if os.path.exists(path) or not  self.homeDir == os.getcwd():
+		path.replace( r"Home", self.homeDir)
+		dirname, filename = os.path.split(self.homeDir)
+		dirname = dirname + "\\"
+		print("home Dir :",dirname)
+		print("requested Dir :",path)
+		if os.path.exists(path) and not  path == dirname:
 			os.chdir(path)
 			self.cwd  = os.getcwd()
 			reply = "200 current working directry is " + self.cwd +"\r\n"
@@ -136,6 +141,7 @@ class FTPServer (threading.Thread):
 #begin Remove directory
 	def RMD (self,filename):
 		# Try remove a directory
+		filename.replace( r"Home", self.homeDir)
 		reply = ""
 		if os.path.exists(filename):
 			if os.path.isdir(filename):
@@ -153,6 +159,7 @@ class FTPServer (threading.Thread):
 #begin delete
 	def DELE (self, pathname):
 	# Try remove a file
+		pathname.replace( r"Home", self.homeDir)
 		reply = ""
 		if os.path.exists(pathname):
 			if os.path.isfile(pathname): 
@@ -169,6 +176,7 @@ class FTPServer (threading.Thread):
 #begin Change working directory
 	def CWD(self, path):
 		# Try change the current working directry
+		path.replace( r"Home", self.homeDir)
 		if os.path.exists(path):
 			reply = '250 Requested file action okay, completed.\r\n'
 			os.chdir(path)
@@ -181,6 +189,11 @@ class FTPServer (threading.Thread):
 
 #begin Print working directory
 	def PWD(self):
+		path = self.cwd + '\\'
+		print("Path :", path)
+		print("home dir : ", self.homeDir)
+		path.replace(self.homeDir, r"Home")
+		print("path after : ", path)
 		reply = "257 " + self.cwd + "\r\n"
 		self.send_response(reply)
 #end Print working directory
@@ -293,7 +306,7 @@ class FTPServer (threading.Thread):
 				data_socket, data_address = self.dataConn.accept()
 			
 			# Locate and transfer the file
-			filename = self.cwd + '/' + file_name
+			filename = self.cwd + '\\' + file_name
 
 			file = open(filename, 'rb')
 			reading = file.read(self.dataBufferSize)
@@ -344,7 +357,7 @@ class FTPServer (threading.Thread):
 	
 		filename = filename.replace('.','1.')
 	
-		file_name = self.cwd + '/' + filename
+		file_name = self.cwd + '\\' + filename
 		file = open(file_name, 'wb')
 		if not self.ActiveMode:
 			file_data = data_socket.recv(self.dataBufferSize)
