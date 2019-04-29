@@ -10,6 +10,8 @@ from threading import Thread
 from PyQt5 import QtCore, QtGui, QtWidgets
 from ClientUI import Ui_ClientUI
 
+DownloadProgres = 0
+
 class FTPClient:
 	def __init__(self):
 		self.IsConnected = False
@@ -285,7 +287,7 @@ class FTPClient:
 			self.data_socket.connect((data_host,data_port))
 	#_____________________________________________________________________
 	# Function to download file from server to the downloads folder
-	def download_file(self, file_Name):
+	def download_file(self, file_Name, progress_callback=None):
 		
 		downloadFolderName = "Downloads"
 		
@@ -311,18 +313,23 @@ class FTPClient:
 			file_data = self.data_socket.recv(self.bufferSize)
 			f = open(downloadFolderName + "/" + file_Name, 'wb')
 			
-			temp = 8192
+			#temp = 8192
+			i = 1
 			while file_data:
-				temp = int(temp/file_Size)*100
-				print(temp)
+				temp = int(((self.bufferSize*i)/file_Size)*100)
+				DownloadProgres = temp
 				self.downloadProgres = temp
+				if progress_callback!=None:
+					progress_callback.emit()
 				
-				temp = temp + 8192
+				#print(self.downloadProgres)
 				f.write(file_data)
-				file_data = self.data_socket.recv(self.bufferSize)
 				
+				file_data = self.data_socket.recv(self.bufferSize)
+				i = i+1
 			f.close()
-			self.downloadList.remove(file_Name)
+			if file_Name in self.downloadList:
+				self.downloadList.remove(file_Name)
 		else:
 			return
 		self.data_socket.close()

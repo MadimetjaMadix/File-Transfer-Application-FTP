@@ -2,11 +2,12 @@ import shutil, os
 import sys
 import time
 import stat
-import datetime
 import string
 import socket
 import random
+import datetime
 import threading 
+import traceback
 from threading import Thread
 
 class FTPServer (threading.Thread):
@@ -312,7 +313,7 @@ class FTPServer (threading.Thread):
 				data_socket.close()
 			self.dataConn.close()
 			
-			reply = "226 Closeing data connection. Requested transfer action successful\r\n"
+			reply = "226 Closing data connection. Requested transfer action successful\r\n"
 		else:
 			reply = "550 The system cannot find the file specified.\r\n"
 			
