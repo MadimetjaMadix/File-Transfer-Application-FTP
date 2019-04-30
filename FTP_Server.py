@@ -5,6 +5,7 @@ import stat
 import string
 import socket
 import random
+import filecmp
 import datetime
 import threading 
 import traceback
@@ -97,11 +98,22 @@ class FTPServer (threading.Thread):
 				validName, validPass = userInfo.split()
 				if self.user == validName and password == validPass:
 					reply = "230 Login successful\r\n"
+					self.createUserFolder()
 					break
 				else:
 					reply = "500 Invalid password\r\n"
 		self.send_response(reply)
 #end Passive
+
+
+	def createUserFolder(self):
+		path = self.homeDir + "\\" + "HOME"
+		if os.path.exists(path):
+			os.chdir(path)
+			self.cwd = os.getcwd()
+		userFolder = "USERS" + "\\" +self.user
+		if not os.path.exists(userFolder):
+			os.makedirs(userFolder)
 
 #begin Representation Type 
 	def TYPE(self,dataType):
@@ -114,9 +126,9 @@ class FTPServer (threading.Thread):
 #begin Change to Parent Directory  
 	def CDUP(self, path):
 		# Try to go up one directory
-		path.replace( r"Home", self.homeDir)
-		dirname, filename = os.path.split(self.homeDir)
-		dirname = dirname + "\\"
+		
+		#dirname, filename = os.path.split(self.homeDir)
+		dirname = self.homeDir + "\\"
 		print("home Dir :",dirname)
 		print("requested Dir :",path)
 		if os.path.exists(path) and not  path == dirname:
@@ -132,24 +144,37 @@ class FTPServer (threading.Thread):
 #begin Make directory
 	def MKD(self, directory):
 		# Try make new directory
-		if not os.path.exists(directory):
-			os.makedirs(directory)
-		reply = "257 directory " + directory + " is created\r\n"
+		reply = ""
+		userDir = self.homeDir + "\\" + "HOME" + "\\" + "USERS"
+		if not (self.cwd ==  userDir):
+			if not os.path.exists(directory):
+				os.makedirs(directory)
+			reply = "257 directory " + directory + " is created\r\n"
+		else:
+			reply = "550 Permission denied\r\n"
+		
 		self.send_response(reply)
 #end Make directory
 		
 #begin Remove directory
-	def RMD (self,filename):
+	def RMD (self,directory):
+		
 		# Try remove a directory
-		filename.replace( r"Home", self.homeDir)
+		userDir = self.homeDir + "\\" + "HOME" + "\\" + "USERS"
 		reply = ""
-		if os.path.exists(filename):
-			if os.path.isdir(filename):
-				try:
-					shutil.rmtree(filename)
-					reply = "250 file " + filename + " is removed\r\n"
-				except OSError:
-					reply = "500 error while removing  the file\r\n"
+		if os.path.exists(directory):
+			if not (directory==userDir):
+				if not (self.cwd==userDir):
+					if os.path.isdir(directory):
+						try:
+							shutil.rmtree(directory)
+							reply = "250 file " + directory + " is removed\r\n"
+						except OSError:
+							reply = "500 error while removing  the file\r\n"
+				else:
+					reply = "550 Permission denied\r\n"
+			else:
+				reply = "550 Permission denied\r\n"
 		else:
 			reply = "550 Requested action not taken. Directory unavailable\r\n"
 			
@@ -176,11 +201,22 @@ class FTPServer (threading.Thread):
 #begin Change working directory
 	def CWD(self, path):
 		# Try change the current working directry
-		path.replace( r"Home", self.homeDir)
+		reply = ''
 		if os.path.exists(path):
-			reply = '250 Requested file action okay, completed.\r\n'
-			os.chdir(path)
-			self.cwd = os.getcwd()
+			userDir = self.homeDir + "\\" + "HOME" + "\\" + "USERS" 
+			directory, filename = os.path.split(path)
+			if (userDir == directory):
+				if (filename == self.user):
+					os.chdir(path)
+					self.cwd = os.getcwd()
+					reply = '250 Requested file action okay, completed.\r\n'
+				else:
+					reply = "550 Permission denied\r\n"
+			else:
+				os.chdir(path)
+				self.cwd = os.getcwd()
+				reply = '250 Requested file action okay, completed.\r\n'
+				
 		else:
 			reply = '550 Requested action not taken. File/Directory unavailable\r\n'
 		
@@ -402,6 +438,9 @@ class FTPServer (threading.Thread):
 #end Establish_data_conn
 
 def main():
+	homeFolder = "HOME"
+	if not os.path.exists(homeFolder):
+		os.makedirs(homeFolder)
 	
 	clientList  = ".dataBase.txt"
 	host_name   = socket.gethostbyname(socket.gethostname())

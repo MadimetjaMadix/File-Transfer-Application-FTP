@@ -1,79 +1,38 @@
-#Import os module
+
+import base64
 import os
-#Import math and time module
-import math,time
+import time
+import sys
 
-#Set listing start location
-path = os.getcwd()
-unit = None
-fsize = None
+pw = "password"   #Dedault Password
+pw = pw.encode()
+encode = base64.b64encode(pw)
 
-listInDirectory = os.listdir(path)
-def getmode(path):
-	if os.access(path, os.F_OK):
-	
-		if os.access(path, os.R_OK):
-			fileread = 'r'
-		else: 
-			fileread = '-'
+def goto(linenum):
+    global line
+    line = linenum
 
-		if os.access(path, os.W_OK):
-			filewrite = 'w'
+line = 1
+while True:
+	pw = str(input("Enter your password for Lock or Unlock your folder: "))
+	pw = pw.encode()
+	if pw == base64.b64decode(encode):
+	# Change Dir Path where you have Locker Folder
+		#os.chdir("F:\Studend\Python\Advanced\Password")
+	# If Locker folder or Recycle bin does not exist then we will be create Locker Folder 
+		if not os.path.exists("Locker"):
+			if not os.path.exists("Locker.{645ff040-5081-101b-9f08-00aa002f954e}"):
+				os.mkdir("Locker")
+			else:
+				os.popen('attrib -h Locker.{645ff040-5081-101b-9f08-00aa002f954e}')
+				os.rename("Locker.{645ff040-5081-101b-9f08-00aa002f954e}","Locker")
+				sys.exit()
 		else:
-			filewrite = '-'
-
-		if os.access(path, os.X_OK):
-			filexe = 'x'
-		else:
-			filexe = '-'
-			
-		if os.path.isfile( path):
-			filetype = '-'
-		elif os.path.isdir( path):
-			filetype = 'd'
-			
-		mode = filetype+fileread+filewrite+filexe
-	return mode
-
-def convertFileSize(file):
-	fsize = os.path.getsize(file)
-	# Convert file size to MB, KB or Bytes
-	'''
-	if (fsize > 1024 * 1024):
-		fsize = math.ceil(fsize / (1024 * 1024))
-		unit = "MB"
-	elif (fsize > 1024):
-		fsize = math.ceil(fsize / 1024)
-		unit = "KB"
+			os.rename("Locker","Locker.{645ff040-5081-101b-9f08-00aa002f954e}")
+			os.popen('attrib +h Locker.{645ff040-5081-101b-9f08-00aa002f954e}')
+			sys.exit()
+		
 	else:
-		fsize = fsize
-		unit = "B"
-	'''
-	return fsize #,unit
-
-
-print(listInDirectory)
-modelist = []
-modTime = []
-fileSize = []
-
-for item in listInDirectory:
-
-	mtime = time.strftime("%X %x", time.gmtime(os.path.getmtime(item)))
-	#mode = getmode(item)
-	if os.path.isfile(item):
-		mode = '-a----'
-		fsize = str(os.path.getsize(item))
-		# Print file attributes
-		#print('\t{:2s} {:18s}{:8d} {:2s} {:15.15s}'.format(mode,mtime,fsize,unit,item))
-	else:
-		mode = 'd-----'
-		# Print file attributes
-		#print('\t{:2s} {:8s} {:15.15s}'.format(mode,mtime, item))
-	modelist.append(mode)
-	modTime.append(mtime)
-	fileSize.append(fsize)
-
-print(modelist)
-print(modTime)
-print(fileSize)
+		print("Wrong password!, Please Enter right password")
+		time.sleep(5)
+		goto(1)
