@@ -66,10 +66,9 @@ class clientUI_Interface(Ui_ClientUI):
 			self.remoteDir_tableWidget.customContextMenuRequested.connect(self.remoteMenu)
 			
 			#-----------------remote-------------------
-			#self.progressBar.show()
 			self.progressBar.setValue(0)
 			self.progressBar.hide()
-			#self.progressBar.setEnabled(True)
+			self.Back_pushButton.setEnabled(False)
 			self.Quit_pushButton.setEnabled(False)
 			self.btn_refreshRemoteDir.setEnabled(False)
 			self.remoteDir_tableWidget.setEnabled(False)
@@ -87,6 +86,7 @@ class clientUI_Interface(Ui_ClientUI):
 			self.btn_RefreshLocalDir.clicked.connect(self.refreshLocal)
 			self.btn_createDir.clicked.connect(self.createDir)
 			self.btn_Cancell_createDir.clicked.connect(self.disableFolderEdit)
+			self.Back_pushButton.clicked.connect(self.directoryReturn)
 			
 	def setSatus(self, isError,status):
 		self.ftpClient.isError = isError
@@ -101,10 +101,6 @@ class clientUI_Interface(Ui_ClientUI):
 			self.status_label.setStyleSheet('color: blue; font-family:Times New Roman; font-size: 11pt')
 			
 		self.status_label.setText(str(self.ftpClient.server_response))
-		#if self.ftpClient.IsValidUser:
-		#	statThread = Thread(target = self.updateStatus )
-		#	statThread.start()
-		#	statThread.join()
 		
 	def connectToServer(self):
 		if not self.ftpClient.IsConnected:
@@ -115,6 +111,7 @@ class clientUI_Interface(Ui_ClientUI):
 			self.Quit_pushButton.setEnabled(True)
 			self.connect_pushButton.setEnabled(False)
 			self.connect_pushButton.setText("Connect")
+			self.Back_pushButton.setEnabled(True)
 			self.btn_refreshRemoteDir.setEnabled(True)
 			self.remoteDir_tableWidget.setEnabled(True)
 			self.refreshRemote()
@@ -174,8 +171,10 @@ class clientUI_Interface(Ui_ClientUI):
 		self.progressBar.hide()
 		self.up_downLoadlabel.setText("")
 		self.progressBar.setEnabled(False)
+		self.Back_pushButton.setEnabled(True)
 		self.btn_refreshRemoteDir.setEnabled(True)
 		self.remoteDir_tableWidget.setEnabled(True)
+		self.refreshRemote()
 		
 	def displayUploadProgBar(self):#, filename)
 		
@@ -213,6 +212,7 @@ class clientUI_Interface(Ui_ClientUI):
 					else:
 						path = self.addPath(filename)
 						self.ftpClient.file_delete(path)
+						self.dispStatus()
 						self.refreshRemote()
 				except:
 					self.setSatus(True,"Cant delete File")
@@ -222,14 +222,18 @@ class clientUI_Interface(Ui_ClientUI):
 	def enableFolderEdit(self):
 		self.dirName_lineEdit.setEnabled(True)
 		self.btn_createDir.setEnabled(True)
+		self.label_foldername.setEnabled(True)
 		self.btn_Cancell_createDir.setEnabled(True)
+		self.Back_pushButton.setEnabled(False)
 		self.btn_refreshRemoteDir.setEnabled(False)
 		self.remoteDir_tableWidget.setEnabled(False)
 		
 	def disableFolderEdit(self):
 		self.btn_Cancell_createDir.setEnabled(False)
 		self.dirName_lineEdit.setEnabled(False)
+		self.label_foldername.setEnabled(False)
 		self.btn_createDir.setEnabled(False)
+		self.Back_pushButton.setEnabled(True)
 		self.btn_refreshRemoteDir.setEnabled(True)
 		self.remoteDir_tableWidget.setEnabled(True)
 		
@@ -274,15 +278,18 @@ class clientUI_Interface(Ui_ClientUI):
 					self.dispStatus()
 					
 			elif currentQTableWidgetRow.row()==0:
-				self.ftpClient.directory_return()
-				self.ftpClient.directory_print()
-				self.dispStatus()
-				self.refreshRemote()
+				self.directoryReturn()
 			else:
 				self.updateCurrentDir()
 				self.ftpClient.directory_print()
 				self.dispStatus()
 				self.refreshRemote()
+				
+	def directoryReturn(self):
+		self.ftpClient.directory_return()
+		self.ftpClient.directory_print()
+		self.dispStatus()
+		self.refreshRemote()
 		
 	def downloadFile(self):
 		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
@@ -312,10 +319,6 @@ class clientUI_Interface(Ui_ClientUI):
 					self.setSatus(True,"Cant downloadFile, Try open instead")
 					self.dispStatus()
 					
-			else:
-				self.updateCurrentDir()
-				self.ftpClient.directory_print()
-				self.refreshRemote()
 		self.dispStatus()
 		
 	def callDownloadFn(self):
@@ -323,7 +326,7 @@ class clientUI_Interface(Ui_ClientUI):
 		#self.threadpool.start(downloadThread)
 		self.setSatus(False,"Downloading ...")
 		self.dispStatus()
-		
+		self.Back_pushButton.setEnabled(False)
 		self.btn_refreshRemoteDir.setEnabled(False)
 		self.remoteDir_tableWidget.setEnabled(False)
 		
@@ -337,9 +340,11 @@ class clientUI_Interface(Ui_ClientUI):
 	def downloadThreadComplete(self):
 		self.setSatus(False,"Done Downloading")
 		self.dispStatus()
+		self.refreshRemote()
 		self.progressBar.hide()
 		self.up_downLoadlabel.setText("")
 		self.progressBar.setEnabled(False)
+		self.Back_pushButton.setEnabled(True)
 		self.btn_refreshRemoteDir.setEnabled(True)
 		self.remoteDir_tableWidget.setEnabled(True)
 		
@@ -411,7 +416,7 @@ class clientUI_Interface(Ui_ClientUI):
 			self.ftpClient.getDirList()
 			self.updateServerDirectoryList()
 			self.updateCurrentDir()
-			self.setSatus(False,"Remote Directory refreshed")
+			#self.setSatus(False,"Remote Directory refreshed")
 			self.dispStatus()
 	
 	def refreshLocal(self):
@@ -429,12 +434,14 @@ class clientUI_Interface(Ui_ClientUI):
 			self.ftpClient.logout()
 			self.Quit_pushButton.setEnabled(False)
 			self.btn_refreshRemoteDir.setEnabled(False)
+			self.remoteDir_lineEdit.setText("")
 			self.remoteDir_tableWidget.clear()
 			self.remoteDir_tableWidget.setEnabled(False)
 			self.connect_pushButton.setEnabled(True)
 			self.conStatus.setStyleSheet('color: red; font-family:Times New Roman; font-size: 11pt')
 			self.conStatus.setText("Offline :")
 			self.status_label.setText('')
+			self.Back_pushButton.setEnabled(False)
 			
 if __name__ == '__main__':
 

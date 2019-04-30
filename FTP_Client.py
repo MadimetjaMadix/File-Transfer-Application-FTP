@@ -66,6 +66,7 @@ class FTPClient:
 			command  = 'PASS ' + password + '\r\n' 
 			self.send_command(command)
 			response = self.recv_command()
+			self.server_response = response[1]
 			
 			if response[0] in self.ErrorCodes:
 				self.IsValidUser = False
@@ -102,7 +103,6 @@ class FTPClient:
 				for item in fileInfo:
 					item = item.strip().rstrip()
 					self.modifyListDetails(item)
-				#print(fileInfo.split(','))
 				if self.isActive:
 					file_data = self.data_connection.recv(self.bufferSize).decode('utf-8').rstrip()
 				else:
@@ -174,7 +174,6 @@ class FTPClient:
 	def recv_command(self):
 		response = self.control_socket.recv(8192).decode()
 		responseCode, message = response.split(" ", 1)
-		self.server_response = message
 		if responseCode not in self.ErrorCodes:
 			self.isError = False
 		else:
@@ -187,6 +186,7 @@ class FTPClient:
 		command = 'CWD ' + directory + '\r\n'
 		self.send_command( command)
 		response = self.recv_command()
+		self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to go up a directory in the server
 	def directory_return(self):
@@ -201,6 +201,7 @@ class FTPClient:
 		command = 'CDUP ' + path +'\r\n'
 		self.send_command( command)
 		response = self.recv_command()
+		self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to go up a directory in the server
 	def directory_print(self):
@@ -220,18 +221,21 @@ class FTPClient:
 		command = 'MKD ' + directory + '\r\n'
 		self.send_command( command)
 		response = self.recv_command()
+		self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to delete a file
 	def file_delete(self, filename):
 		command = 'DELE ' + filename + '\r\n'
 		self.send_command( command)
 		response = self.recv_command()
+		self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to delete a folder on the server
 	def directory_delete(self, directory):
 		command = 'RMD ' + directory + '\r\n'
 		self.send_command( command)
 		response = self.recv_command()
+		self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to establish a Passive data connection
 	def dataConnection(self):

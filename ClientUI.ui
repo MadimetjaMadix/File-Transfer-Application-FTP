@@ -68,7 +68,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>1</string>
+     <string>Seth107</string>
     </property>
     <property name="echoMode">
      <enum>QLineEdit::Password</enum>
@@ -145,7 +145,7 @@
       <x>60</x>
       <y>50</y>
       <width>461</width>
-      <height>21</height>
+      <height>31</height>
      </rect>
     </property>
     <property name="text">
@@ -153,6 +153,9 @@
     </property>
    </widget>
    <widget class="QLineEdit" name="localDir_lineEdit">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -163,11 +166,14 @@
     </property>
    </widget>
    <widget class="QLineEdit" name="remoteDir_lineEdit">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
-      <x>540</x>
+      <x>570</x>
       <y>80</y>
-      <width>451</width>
+      <width>421</width>
       <height>21</height>
      </rect>
     </property>
@@ -182,7 +188,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>m</string>
+     <string>Madix</string>
     </property>
    </widget>
    <widget class="QProgressBar" name="progressBar">
@@ -314,6 +320,9 @@
     </property>
    </widget>
    <widget class="QLabel" name="label_foldername">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>510</x>
@@ -339,7 +348,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Create</string>
+     <string>Cancel</string>
     </property>
    </widget>
    <widget class="QLabel" name="up_downLoadlabel">
@@ -366,6 +375,19 @@
     </property>
     <property name="text">
      <string/>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="Back_pushButton">
+    <property name="geometry">
+     <rect>
+      <x>540</x>
+      <y>80</y>
+      <width>31</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>&lt;-</string>
     </property>
    </widget>
   </widget>

@@ -390,9 +390,8 @@ class FTPServer (threading.Thread):
 	
 		if not self.ActiveMode:
 			data_socket, data_address = self.dataConn.accept()
-	
-		filename = filename.replace('.','1.')
-	
+		
+		
 		file_name = self.cwd + '\\' + filename
 		file = open(file_name, 'wb')
 		if not self.ActiveMode:
