@@ -7,12 +7,13 @@ import string
 import threading
 from threading import Thread
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from ClientUI import Ui_ClientUI
-
 DownloadProgres = 0
 
 class FTPClient:
+	'''
+	This class holds all the logic belonging to the FTPClient. This includes the User 
+	Protocol Interpreter and the User Data Transfer Process.
+	'''
 	def __init__(self):
 		self.IsConnected = False
 		self.isActive = False
@@ -33,7 +34,11 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to initialize a TCP to the server
 	def initializeFTPConnection(self, host_name):
-		
+		'''
+		This Function initiate a control connection. This is the communication path 
+		between the USER-PI and SERVER-PI for the exchange of commands and replies.
+		This connection follows the Telnet Protocol.
+		'''
 		host_port = 21
 		host_adr  = (host_name, host_port) 
 		
@@ -56,7 +61,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to login to the server
 	def login(self, username, password):
-		
+		'''
+		This function sends the user infomation to the server through comands 
+		and checks the reply if is the user-information was valid.
+		'''
 		command  = 'USER ' + username + '\r\n' 
 		self.send_command( command )
 		response = self.recv_command()
@@ -78,12 +86,18 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to sent a command to the server
 	def send_command(self, command):
+		'''
+		This function sends the commands to the server through the control socket.
+		'''
 		print("Client: ", command)
 		self.control_socket.send(command.encode())
 	#_____________________________________________________________________
 	# Function to get the list of files on the server's directory
 	def getDirList(self):
-		
+		'''
+		This function request a list of files in the server's current directory
+		and adds the to an array.
+		'''
 		self.isActive = False
 		self.dataConnection()
 		
@@ -114,7 +128,7 @@ class FTPClient:
 		
 	def modifyListDetails(self,listData):
 		'''
-			modifyListDetails 
+		This list modifies the list data to be stored in a specific maner.
 		'''
 		filePermission = 0
 		filenameIndex  = 8
@@ -150,10 +164,13 @@ class FTPClient:
 		self.ListInDir.append(tempList)
 	
 	def processFileSize(self, fileSize):
+		'''
+		This function modified the filesize from bytes to compound sizes
+		'''
 		# Response is in bytes:
-		
 		kbSize        = 1024
 		mbSize        = kbSize**2
+		gbSize		  = kbSize**3
 		newFileSize   = 0
 		sizeType	  = 'Bytes'
 		# Convert to megabytes when file is larger than a megabyte
@@ -162,9 +179,12 @@ class FTPClient:
 		elif fileSize >= kbSize and fileSize < mbSize:
 			newFileSize = fileSize/kbSize
 			sizeType    = 'KB'
-		elif fileSize >= mbSize:
+		elif fileSize >= mbSize and fileSize < gbSize:
 			newFileSize = fileSize/mbSize
 			sizeType = 'MB'
+		elif fileSize >= gbSize:
+			newFileSize = fileSize/gbSize
+			sizeType = 'GB'
 		
 		newFileSize = round(newFileSize,2)
 		return newFileSize, sizeType
@@ -172,6 +192,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to receive the reply from the server
 	def recv_command(self):
+		'''
+		This function receives replys from the sever through the control socket
+		and determines if an error code was recieved or not.
+		'''
 		response = self.control_socket.recv(8192).decode()
 		responseCode, message = response.split(" ", 1)
 		if responseCode not in self.ErrorCodes:
@@ -183,6 +207,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to change the directory of the server
 	def directory_change(self, directory):
+		'''
+		This function send a comand to the server to change to the specified
+		directory if it exists.
+		'''
 		command = 'CWD ' + directory + '\r\n'
 		self.send_command( command)
 		response = self.recv_command()
@@ -190,7 +218,9 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to go up a directory in the server
 	def directory_return(self):
-		print(self.serverDir)
+		'''
+		This function sends a comand to the server to go move up the directory once.
+		'''
 		path = ".."
 		try:
 			pathIndex = self.serverDir.rfind("\\", 1)
@@ -205,6 +235,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to go up a directory in the server
 	def directory_print(self):
+		'''
+		This function sends a command to the server to return the current working
+		directory.
+		'''
 		command = 'PWD\r\n'
 		self.send_command( command)
 		response = self.recv_command()
@@ -218,6 +252,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to create a folder on the server
 	def directory_create(self, directory):
+		'''
+		This function sends a command to the server to create a directory of a given 
+		name if it does not exist.
+		'''
 		command = 'MKD ' + directory + '\r\n'
 		self.send_command( command)
 		response = self.recv_command()
@@ -225,6 +263,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to delete a file
 	def file_delete(self, filename):
+		'''
+		This function sends a command to the server to delete a given file if 
+		it exist.
+		'''
 		command = 'DELE ' + filename + '\r\n'
 		self.send_command( command)
 		response = self.recv_command()
@@ -232,6 +274,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to delete a folder on the server
 	def directory_delete(self, directory):
+		'''
+		This function sends a command to the server to delete a given directory
+		and all of its contents.
+		'''
 		command = 'RMD ' + directory + '\r\n'
 		self.send_command( command)
 		response = self.recv_command()
@@ -239,7 +285,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to establish a Passive data connection
 	def dataConnection(self):
-		
+		'''
+		This function sends a command to the server to establish a data connection.
+		the connection is either PASSIVE or ACTIVE.
+		'''
 		if self.isActive:
 			#Active
 			
@@ -293,7 +342,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to download file from server to the downloads folder
 	def download_file(self, file_Name, progress_callback=None):
-		
+		'''
+		This function sends a command to the server to RETRIVE a given file
+		through the data connection if it exists.
+		'''
 		downloadFolderName = "Downloads"
 		
 		if not os.path.exists(downloadFolderName):
@@ -345,6 +397,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to upload a file to the server's current directory
 	def upload_file(self, file_Name, filepath,   progress_callback=None):
+		'''
+		This function sends a command to the server to STORE a given file
+		through the data connction on its current working directory.
+		'''
 		if self.IsConnected:
 			print(file_Name)
 			print(filepath)
@@ -390,6 +446,10 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to logout of the server
 	def logout(self):
+		'''
+		This function sends a command to the server to disable all the communication link
+		both data and control connections.
+		'''
 		command = 'QUIT\r\n'
 		self.send_command( command)
 		response = self.recv_command()
@@ -398,55 +458,4 @@ class FTPClient:
 			self.data_connection.close()
 		self.control_socket.close()
 	#_____________________________________________________________________
-		
-def main():
 
-	client = FTPClient()
-	
-	username = ""
-	password = ""
-	host_name = ""
-	
-	host_name = input("Enter host IP address : ")
-	
-	client.initializeFTPConnection(host_name)
-	
-	if not client.IsConnected:
-		return
-	else:
-		username = input(str("Enter user name : "))
-		password = input(str("Enter user pass : "))
-		client.login(username, password)
-	
-	if client.IsValidUser:
-		#print("======================================================")
-		#client.getDirList()
-		#client.directory_create("New")
-		#client.getDirList()
-		#client.directory_change("New")
-		#command = 'PWD\r\n'
-		#client.send_command( command)
-		#response = client.recv_command()
-		
-		#client.directory_return()
-		#command = 'PWD\r\n'
-		#client.send_command( command)
-		#response = client.recv_command()
-		
-		#client.directory_delete("New")
-		client.getDirList()
-		file_Name = input(str("Enter the name of the file you want to download : "))
-		
-		client.download_file(file_Name)
-		
-		print("======================================================")
-
-		client.getDirList()
-		
-		file_Name = input(str("Enter the name of the file you want to upload : "))
-		client.upload_file(file_Name)
-		
-	client.logout()
-	
-if __name__ == '__main__':
-		main()
