@@ -12,6 +12,12 @@ class Ui_ClientUI(object):
     def setupUi(self, ClientUI):
         ClientUI.setObjectName("ClientUI")
         ClientUI.resize(1072, 626)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(ClientUI.sizePolicy().hasHeightForWidth())
+        ClientUI.setSizePolicy(sizePolicy)
+        ClientUI.setMaximumSize(QtCore.QSize(1072, 626))
         font = QtGui.QFont()
         font.setFamily("Times New Roman")
         font.setPointSize(11)

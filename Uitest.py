@@ -22,7 +22,6 @@ class actionSignals(QtCore.QObject):
 	Supported signals are:
 	finished -> No data
 	error -> tuple` (exctype, value, traceback.format_exc() )
-	result-> object` data returned from processing, anything
 	'''
 	finished = QtCore.pyqtSignal()
 	error = QtCore.pyqtSignal(tuple)
@@ -87,6 +86,8 @@ class clientUI_Interface(Ui_ClientUI):
 			self.btn_createDir.clicked.connect(self.createDir)
 			self.btn_Cancell_createDir.clicked.connect(self.disableFolderEdit)
 			self.Back_pushButton.clicked.connect(self.directoryReturn)
+			self.remoteDir_tableWidget.doubleClicked.connect(self.openFolder)
+			#self.your_table.doubleClicked.connect(your_function)
 			
 	def setSatus(self, isError,status):
 		self.ftpClient.isError = isError
@@ -143,27 +144,34 @@ class clientUI_Interface(Ui_ClientUI):
 		local_menu.exec_(cursor.pos())	# pass it to the menu executor
 		
 	def uploadFile(self):
-		local_index = self.localDir_treeView.currentIndex()
-		filename = self.localModel.fileName(local_index)
-		filepath = self.localModel.filePath(local_index)
-		
-		#self.ftpClient.upload_file(filename)
-		
-		self.ftpClient.upLoadList.append(filename)
-		uploadThread = actionHandler(self.ftpClient.upload_file, filename, filepath)
-						
-		uploadThread.signals.finished.connect(self.uploadThreadComplete)
-		uploadThread.signals.error.connect(self.uploadFailed)
-		uploadThread.signals.fileProgress.connect(self.displayUploadProgBar)
-						
-		self.threadpool.start(uploadThread)
-		
-		msg = "Upload file : " + filename
-		self.setSatus(False,msg)
+		if self.ftpClient.IsConnected:
+			local_index = self.localDir_treeView.currentIndex()
+			filename = self.localModel.fileName(local_index)
+			filepath = self.localModel.filePath(local_index)
+			
+			#self.ftpClient.upload_file(filename)
+			
+			self.ftpClient.upLoadList.append(filename)
+			uploadThread = actionHandler(self.ftpClient.upload_file, filename, filepath)
+							
+			uploadThread.signals.finished.connect(self.uploadThreadComplete)
+			uploadThread.signals.error.connect(self.uploadFailed)
+			uploadThread.signals.fileProgress.connect(self.displayUploadProgBar)
+							
+			self.threadpool.start(uploadThread)
+			
+			msg = "Upload file : " + filename
+			self.setSatus(False,msg)
+			self.dispStatus()
+		else:
+			self.uploadFailed()
+			
+	def uploadFailed(self):
+		msg = "Upload Failed, Check connection"
+		self.setSatus(True,msg)
 		self.dispStatus()
 		
-	def uploadFailed(self):
-		print("Upload Failed")
+		print(msg)
 		
 	def uploadThreadComplete(self):
 		self.setSatus(False,"Done Uploading")
@@ -258,10 +266,12 @@ class clientUI_Interface(Ui_ClientUI):
 		return path
 	def openFolder(self):
 		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
-			if currentQTableWidgetRow.row()!=0:
-				print(currentQTableWidgetRow.row())
+			filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+			if (filename == ".."):
+				self.directoryReturn()
+			elif not (filename == ".."):
+				
 				try:
-					filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
 					permission = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 3).text()
 					if permission.find('d') is not -1:
 						path = self.addPath(filename)
@@ -277,8 +287,6 @@ class clientUI_Interface(Ui_ClientUI):
 					self.setSatus(True,"Cant open file, Download instead")
 					self.dispStatus()
 					
-			elif currentQTableWidgetRow.row()==0:
-				self.directoryReturn()
 			else:
 				self.updateCurrentDir()
 				self.ftpClient.directory_print()
@@ -322,17 +330,12 @@ class clientUI_Interface(Ui_ClientUI):
 		self.dispStatus()
 		
 	def callDownloadFn(self):
-		#progressThread = actionHandler(self.displayDownloadProgBar())
-		#self.threadpool.start(downloadThread)
+		
 		self.setSatus(False,"Downloading ...")
 		self.dispStatus()
 		self.Back_pushButton.setEnabled(False)
 		self.btn_refreshRemoteDir.setEnabled(False)
 		self.remoteDir_tableWidget.setEnabled(False)
-		
-		#self.ftpClient.download_file(fileName, progress_callback )
-		
-		
 
 	def downloadFailed(self):
 		print("download Failed")
@@ -371,13 +374,12 @@ class clientUI_Interface(Ui_ClientUI):
 			# Set Row Count:
 			self.remoteDir_tableWidget.setRowCount(len(self.ftpClient.ListInDir)+1)
 			# Default:
-			self.remoteDir_tableWidget.setItem(0,0, QtWidgets.QTableWidgetItem(".."))
 			header = self.remoteDir_tableWidget.horizontalHeader()
 			header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
 			header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
 			header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
 			
-			row = 1
+			row = 0
 			col = 0
 			for item in self.ftpClient.ListInDir:
 				#print(item)
@@ -421,7 +423,6 @@ class clientUI_Interface(Ui_ClientUI):
 	
 	def refreshLocal(self):
 		self.populateLocalDir()
-		
 		
 	def updateStatus(self):
 		time.sleep(1)

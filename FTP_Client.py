@@ -345,43 +345,48 @@ class FTPClient:
 	#_____________________________________________________________________
 	# Function to upload a file to the server's current directory
 	def upload_file(self, file_Name, filepath,   progress_callback=None):
-		
-		print(file_Name)
-		print(filepath)
-		if os.path.isfile(filepath):
-			self.dataConnection()
-			fileSize = os.path.getsize(filepath)
-			
-			command  = 'STOR ' + file_Name + '\r\n' 
-			self.send_command( command)
-			response = self.recv_command()
-			
-			if response[0] not in self.ErrorCodes: 
-				#file_Name = os.getcwd() + '/'+ file_Name
+		if self.IsConnected:
+			print(file_Name)
+			print(filepath)
+			if os.path.isfile(filepath):
+				self.dataConnection()
+				fileSize = os.path.getsize(filepath)
 				
-				uploadFile   = open(filepath, 'rb')
-				reading_data = uploadFile.read(self.bufferSize) 
-				temp  = self.bufferSize
-				while reading_data:
-					self.progressValue = int((temp/fileSize)*100)
-					
-					if progress_callback!=None:
-						progress_callback.emit()
-					
-					self.data_socket.send(reading_data)
-					reading_data = uploadFile.read(self.bufferSize) 
-					temp = temp + self.bufferSize
-					
-				uploadFile.close()
-				if file_Name in self.upLoadList:
-					self.upLoadList.remove(file_Name)
-				
-				self.data_socket.close()
+				command  = 'STOR ' + file_Name + '\r\n' 
+				self.send_command( command)
 				response = self.recv_command()
+				
+				if response[0] not in self.ErrorCodes: 
+					#file_Name = os.getcwd() + '/'+ file_Name
+					
+					uploadFile   = open(filepath, 'rb')
+					reading_data = uploadFile.read(self.bufferSize) 
+					temp  = self.bufferSize
+					while reading_data:
+						self.progressValue = int((temp/fileSize)*100)
+						
+						if progress_callback!=None:
+							progress_callback.emit()
+						
+						self.data_socket.send(reading_data)
+						reading_data = uploadFile.read(self.bufferSize) 
+						temp = temp + self.bufferSize
+						
+					uploadFile.close()
+					if file_Name in self.upLoadList:
+						self.upLoadList.remove(file_Name)
+					
+					self.data_socket.close()
+					response = self.recv_command()
 
+			else:
+				print("File selected does not exist")
+				return
 		else:
-			print("File selected does not exist")
-			return
+			msg = "Not connected to server"
+			self.isError = True
+			self.server_response = msg
+			print(msg)
 	#_____________________________________________________________________
 	# Function to logout of the server
 	def logout(self):

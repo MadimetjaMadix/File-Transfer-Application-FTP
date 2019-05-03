@@ -10,6 +10,18 @@
     <height>626</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>1072</width>
+    <height>626</height>
+   </size>
+  </property>
   <property name="font">
    <font>
     <family>Times New Roman</family>
