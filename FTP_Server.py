@@ -124,7 +124,7 @@ class FTPServer (threading.Thread):
 #end Representation Type 
 
 #begin Change to Parent Directory  
-	def CDUP(self, path):
+	def CDUP(self, path = ".."):
 		# Try to go up one directory
 		
 		#dirname, filename = os.path.split(self.homeDir)
