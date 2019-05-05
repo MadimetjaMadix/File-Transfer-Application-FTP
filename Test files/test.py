@@ -1,4 +1,4 @@
-
+'''
 import base64
 import os
 import time
@@ -36,3 +36,4 @@ while True:
 		print("Wrong password!, Please Enter right password")
 		time.sleep(5)
 		goto(1)
+'''

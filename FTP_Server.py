@@ -225,11 +225,7 @@ class FTPServer (threading.Thread):
 
 #begin Print working directory
 	def PWD(self):
-		path = self.cwd + '\\'
-		print("Path :", path)
-		print("home dir : ", self.homeDir)
-		path.replace(self.homeDir, r"Home")
-		print("path after : ", path)
+		print('Current Working Directory : ', self.cwd)
 		reply = "257 " + self.cwd + "\r\n"
 		self.send_response(reply)
 #end Print working directory
@@ -247,8 +243,13 @@ class FTPServer (threading.Thread):
 			for file in items:
 				newPath = os.path.join(self.cwd ,file)
 				date_mod = datetime.datetime.fromtimestamp(os.path.getmtime(newPath)).strftime('%b %d %H:%M')
+				# get file stats
+				fileStats = os.stat(newPath)
+				linkNum = fileStats.st_nlink
+				userID = fileStats.st_uid
+				groupID = fileStats.st_gid
 				fileSize = os.path.getsize(newPath)
-				file_data = str(stat.filemode(os.stat(newPath).st_mode))+'\t'+'1 4006 \t 4000\t\t'+str(fileSize)+'\t'+str(date_mod)+'\t'+file 
+				file_data = str(stat.filemode(os.stat(newPath).st_mode))+'\t'+str(linkNum)+'\t'+ str(userID) +'\t'+ str(groupID)+'\t\t'+str(fileSize)+'\t'+str(date_mod)+'\t'+file 
 				response.append(file_data)
 		
 		for item in response:

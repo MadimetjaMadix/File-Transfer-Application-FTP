@@ -119,6 +119,7 @@ class FTPClient:
 					self.modifyListDetails(item)
 				if self.isActive:
 					file_data = self.data_connection.recv(self.bufferSize).decode('utf-8').rstrip()
+					
 				else:
 					file_data = self.data_socket.recv(self.bufferSize).decode('utf-8').rstrip()
 		if not self.isActive:
