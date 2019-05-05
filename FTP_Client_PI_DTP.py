@@ -90,7 +90,17 @@ class FTPClient:
 		This function sends the commands to the server through the control socket.
 		'''
 		print("Client: ", command)
-		self.control_socket.send(command.encode())
+		try:
+			self.control_socket.send(command.encode())
+		except:
+			msg = 'Failed to send to server'
+			self.isError = True
+			self.server_response = msg
+			print(msg)
+			self.IsConnected = False
+			if self.isActive:
+				self.data_connection.close()
+			self.control_socket.close()
 	#_____________________________________________________________________
 	# Function to get the list of files on the server's directory
 	def getDirList(self):
@@ -103,29 +113,30 @@ class FTPClient:
 		
 		command = 'LIST\r\n'
 		self.send_command( command)
-		response = self.recv_command()
-		
-		if response[0] not in self.ErrorCodes: 
+		if self.IsConnected:
+			response = self.recv_command()
 			
-			if self.isActive:
-				file_data = self.data_connection.recv(self.bufferSize).decode('utf-8').rstrip()
-			else:
-				file_data = self.data_socket.recv(self.bufferSize).decode('utf-8').rstrip()
-			self.ListInDir = []
-			while file_data:
-				fileInfo = file_data.split('\r')
-				for item in fileInfo:
-					item = item.strip().rstrip()
-					self.modifyListDetails(item)
+			if response[0] not in self.ErrorCodes: 
+				
 				if self.isActive:
 					file_data = self.data_connection.recv(self.bufferSize).decode('utf-8').rstrip()
-					
 				else:
 					file_data = self.data_socket.recv(self.bufferSize).decode('utf-8').rstrip()
-		if not self.isActive:
-			self.data_socket.close()
-		print(self.ListInDir)
-		response = self.recv_command()
+				self.ListInDir = []
+				while file_data:
+					fileInfo = file_data.split('\r')
+					for item in fileInfo:
+						item = item.strip().rstrip()
+						self.modifyListDetails(item)
+					if self.isActive:
+						file_data = self.data_connection.recv(self.bufferSize).decode('utf-8').rstrip()
+						
+					else:
+						file_data = self.data_socket.recv(self.bufferSize).decode('utf-8').rstrip()
+			if not self.isActive:
+				self.data_socket.close()
+			print(self.ListInDir)
+			response = self.recv_command()
 		
 	def modifyListDetails(self,listData):
 		'''
@@ -214,8 +225,9 @@ class FTPClient:
 		'''
 		command = 'CWD ' + directory + '\r\n'
 		self.send_command( command)
-		response = self.recv_command()
-		self.server_response = response[1]
+		if self.IsConnected:
+			response = self.recv_command()
+			self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to go up a directory in the server
 	def directory_return(self):
@@ -231,8 +243,9 @@ class FTPClient:
 			print(" ")
 		command = 'CDUP ' + path +'\r\n'
 		self.send_command( command)
-		response = self.recv_command()
-		self.server_response = response[1]
+		if self.IsConnected:
+			response = self.recv_command()
+			self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to go up a directory in the server
 	def directory_print(self):
@@ -242,14 +255,15 @@ class FTPClient:
 		'''
 		command = 'PWD\r\n'
 		self.send_command( command)
-		response = self.recv_command()
-		self.serverDir = response[1]
+		if self.IsConnected:
+			response = self.recv_command()
+			self.serverDir = response[1]
+			
+			indexFirstElement 	   = response[1].find('"')
+			indexLastElement  	   = response[1].rfind('"')
 		
-		indexFirstElement 	   = response[1].find('"')
-		indexLastElement  	   = response[1].rfind('"')
-	
-		if indexFirstElement!=-1 and indexLastElement!=-1:
-			self.serverDir   = self.serverDir[indexFirstElement+1:indexLastElement]
+			if indexFirstElement!=-1 and indexLastElement!=-1:
+				self.serverDir   = self.serverDir[indexFirstElement+1:indexLastElement]
 	#_____________________________________________________________________
 	# Function to create a folder on the server
 	def directory_create(self, directory):
@@ -259,8 +273,9 @@ class FTPClient:
 		'''
 		command = 'MKD ' + directory + '\r\n'
 		self.send_command( command)
-		response = self.recv_command()
-		self.server_response = response[1]
+		if self.IsConnected:
+			response = self.recv_command()
+			self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to delete a file
 	def file_delete(self, filename):
@@ -270,8 +285,9 @@ class FTPClient:
 		'''
 		command = 'DELE ' + filename + '\r\n'
 		self.send_command( command)
-		response = self.recv_command()
-		self.server_response = response[1]
+		if self.IsConnected:
+			response = self.recv_command()
+			self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to delete a folder on the server
 	def directory_delete(self, directory):
@@ -281,8 +297,9 @@ class FTPClient:
 		'''
 		command = 'RMD ' + directory + '\r\n'
 		self.send_command( command)
-		response = self.recv_command()
-		self.server_response = response[1]
+		if self.IsConnected:
+			response = self.recv_command()
+			self.server_response = response[1]
 	#_____________________________________________________________________
 	# Function to establish a Passive data connection
 	def dataConnection(self):
@@ -322,24 +339,25 @@ class FTPClient:
 			#PASV
 			command  = 'PASV\r\n' 
 			self.send_command( command)
-			response = self.recv_command()
-			
-			response = response[1]
-			firstBracketIndex = response.find("(")
-			lastBracketIndex  = response.find(")")
-			
-			dataPortAddress   = response[firstBracketIndex + 1:lastBracketIndex]
-			dataPortAddress   = dataPortAddress.split(",")
-			
-			data_host 	 = '.'.join(dataPortAddress[0:4])
+			if self.IsConnected:
+				response = self.recv_command()
+				
+				response = response[1]
+				firstBracketIndex = response.find("(")
+				lastBracketIndex  = response.find(")")
+				
+				dataPortAddress   = response[firstBracketIndex + 1:lastBracketIndex]
+				dataPortAddress   = dataPortAddress.split(",")
+				
+				data_host 	 = '.'.join(dataPortAddress[0:4])
 
-			tempDataPort = dataPortAddress[-2:]
-			
-			data_port = int((int(tempDataPort[0]) * 256) + int(tempDataPort[1]))
-			data_port = int(data_port)
-			
-			self.data_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-			self.data_socket.connect((data_host,data_port))
+				tempDataPort = dataPortAddress[-2:]
+				
+				data_port = int((int(tempDataPort[0]) * 256) + int(tempDataPort[1]))
+				data_port = int(data_port)
+				
+				self.data_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+				self.data_socket.connect((data_host,data_port))
 	#_____________________________________________________________________
 	# Function to download file from server to the downloads folder
 	def download_file(self, file_Name, progress_callback=None):
@@ -356,38 +374,39 @@ class FTPClient:
 		
 		command  = 'RETR ' + file_Name + '\r\n' 
 		self.send_command( command)
-		response = self.recv_command()
-		
-		if response[0] not in self.ErrorCodes: 
+		if self.IsConnected:
+			response = self.recv_command()
 			
-			response = response[1]
-			firstBracketIndex = response.find("(")
-			lastBracketIndex  = response.find(")")
-			
-			filesize = response[firstBracketIndex + 1:lastBracketIndex]
-			filesize, bytes = filesize.split(" ", 1)
-			file_Size = int(filesize)
-			
-			file_data = self.data_socket.recv(self.bufferSize)
-			f = open(downloadFolderName + "\\" + file_Name, 'wb')
-			
-			#temp = 8192
-			i = 1
-			while file_data:
-				temp = int(((self.bufferSize*i)/file_Size)*100)
-				DownloadProgres = temp
-				self.progressValue = temp
-				if progress_callback!=None:
-					progress_callback.emit()
+			if response[0] not in self.ErrorCodes: 
 				
-				#print(self.progressValue)
-				f.write(file_data)
+				response = response[1]
+				firstBracketIndex = response.find("(")
+				lastBracketIndex  = response.find(")")
+				
+				filesize = response[firstBracketIndex + 1:lastBracketIndex]
+				filesize, bytes = filesize.split(" ", 1)
+				file_Size = int(filesize)
 				
 				file_data = self.data_socket.recv(self.bufferSize)
-				i = i+1
-			f.close()
-			if file_Name in self.downloadList:
-				self.downloadList.remove(file_Name)
+				f = open(downloadFolderName + "\\" + file_Name, 'wb')
+				
+				#temp = 8192
+				i = 1
+				while file_data:
+					temp = int(((self.bufferSize*i)/file_Size)*100)
+					DownloadProgres = temp
+					self.progressValue = temp
+					if progress_callback!=None:
+						progress_callback.emit()
+					
+					#print(self.progressValue)
+					f.write(file_data)
+					
+					file_data = self.data_socket.recv(self.bufferSize)
+					i = i+1
+				f.close()
+				if file_Name in self.downloadList:
+					self.downloadList.remove(file_Name)
 		else:
 			return
 		self.data_socket.close()
@@ -445,6 +464,10 @@ class FTPClient:
 			self.server_response = msg
 			print(msg)
 	#_____________________________________________________________________
+	# Function to test the connection with the server
+	def testConnectionToServer(self):
+		return
+	#_____________________________________________________________________
 	# Function to logout of the server
 	def logout(self):
 		'''
@@ -453,10 +476,11 @@ class FTPClient:
 		'''
 		command = 'QUIT\r\n'
 		self.send_command( command)
-		response = self.recv_command()
-		self.IsConnected = False
-		if self.isActive:
-			self.data_connection.close()
-		self.control_socket.close()
+		if self.IsConnected:
+			response = self.recv_command()
+			self.IsConnected = False
+			if self.isActive:
+				self.data_connection.close()
+			self.control_socket.close()
 	#_____________________________________________________________________
 

@@ -41,7 +41,7 @@ class FTPServer (threading.Thread):
 			if not self.isconnectionActive:
 				break
 			
-			available_commands = ['USER', 'PASS', 'DELE' ,'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'PWD', 'CWD', 'LIST', 'CDUP', 'MKD', 'RMD' ]
+			available_commands = ['USER', 'PASS', 'DELE' ,'PASV', 'RETR', 'STOR', 'QUIT', 'PORT', 'TYPE', 'PWD', 'CWD', 'LIST', 'CDUP', 'MKD', 'RMD', 'NOOP' ]
 			
 			client_message = self.commandConn.recv(self.cmdBufferSize).decode()
 			print("Client : ", client_message)
@@ -417,7 +417,13 @@ class FTPServer (threading.Thread):
 		self.send_response(reply)
 		return
 #end Upload
-		
+
+#begin NOOP
+	def NOOP(self):
+		reply = "200 Okay\r\n"
+		self.send_response(reply)
+#end NOOP
+
 #begin Logout
 	def QUIT(self):
 		# Disable the command socket connection

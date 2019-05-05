@@ -174,6 +174,7 @@ class clientUI_Interface(Ui_ClientUI):
 			self.dispStatus()
 		else:
 			self.uploadFailed()
+			self.disconnected()
 	#==================================================================================
 	def uploadFailed(self):
 		msg = "Upload Failed, Check connection"
@@ -274,7 +275,10 @@ class clientUI_Interface(Ui_ClientUI):
 	#==================================================================================
 	def openFolder(self):
 		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
-			filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+			try:
+				filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+			except:
+				return
 			if (filename == ".."):
 				self.directoryReturn()
 			elif not (filename == ".."):
@@ -310,8 +314,11 @@ class clientUI_Interface(Ui_ClientUI):
 	def downloadFile(self):
 		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
 			if currentQTableWidgetRow.row()!=0:
-				filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
-				permission = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 3).text()
+				try:
+					filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+				except:
+					return
+				returnpermission = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 3).text()
 				if permission.find('d') is -1:
 					try:
 						#saveFileInDirectory = str(QtWidgets.QFileDialog.getExistingDirectory(None, "Save File In Directory", currentDirectory,\
@@ -391,7 +398,7 @@ class clientUI_Interface(Ui_ClientUI):
 			row = 0
 			col = 0
 			for item in self.ftpClient.ListInDir:
-				#print(item)
+				print(item)
 				for fileProperty in item:
 					fileTypeIco = None
 					if col==0:
@@ -428,6 +435,8 @@ class clientUI_Interface(Ui_ClientUI):
 			self.updateCurrentDir()
 			#self.setSatus(False,"Remote Directory refreshed")
 			self.dispStatus()
+		else:
+			self.disconnected()
 	#==================================================================================
 	def refreshLocal(self):
 		self.populateLocalDir()
@@ -437,7 +446,23 @@ class clientUI_Interface(Ui_ClientUI):
 		if self.ftpClient.IsConnected:
 			self.status_label.setStyleSheet('color: blue; font-family:Times New Roman; font-size: 11pt')
 			self.status_label.setText("...")
+		else:
+			self.disconnected()
 	#==================================================================================
+	def disconnected(self):
+		if not self.ftpClient.IsConnected:
+			self.Quit_pushButton.setEnabled(False)
+			self.btn_refreshRemoteDir.setEnabled(False)
+			self.remoteDir_lineEdit.setText("")
+			self.remoteDir_tableWidget.clear()
+			self.remoteDir_tableWidget.setEnabled(False)
+			self.connect_pushButton.setEnabled(True)
+			time.sleep(1)
+			self.conStatus.setStyleSheet('color: red; font-family:Times New Roman; font-size: 11pt')
+			self.conStatus.setText("Offline :")
+			self.status_label.setText('')
+			self.Back_pushButton.setEnabled(False)
+			
 	def quit(self):
 		if self.ftpClient.IsConnected:
 			self.ftpClient.logout()
