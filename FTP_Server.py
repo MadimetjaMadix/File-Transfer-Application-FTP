@@ -11,6 +11,8 @@ import threading
 import traceback
 from threading import Thread
 
+UploadList = []
+
 class FTPServer (threading.Thread):
 	def __init__(self, connection_socket, client_address, DataBase,homeDir ):
 		threading.Thread.__init__(self)
@@ -127,11 +129,11 @@ class FTPServer (threading.Thread):
 	def CDUP(self, path = ".."):
 		# Try to go up one directory
 		
-		#dirname, filename = os.path.split(self.homeDir)
-		dirname = self.homeDir + "\\"
-		print("home Dir :",dirname)
+		userHomeDir = self.homeDir + "\\" + "HOME"
+		print("home Dir :",userHomeDir)
 		print("requested Dir :",path)
-		if os.path.exists(path) and not  path == dirname:
+		print(self.cwd)
+		if os.path.exists(path) and not  self.cwd == userHomeDir:
 			os.chdir(path)
 			self.cwd  = os.getcwd()
 			reply = "200 current working directry is " + self.cwd +"\r\n"
@@ -235,9 +237,11 @@ class FTPServer (threading.Thread):
 		
 		reply = "125 List being send to Dataconnection\r\n"
 		self.send_response(reply)
-		data_socket, data_address = self.dataConn.accept()
 		
-		response = []
+		if not self.ActiveMode:
+			data_socket, data_address = self.dataConn.accept()
+		
+		dirList = []
 		if os.path.exists(self.cwd ):
 			items = os.listdir(self.cwd )
 			for file in items:
@@ -250,11 +254,19 @@ class FTPServer (threading.Thread):
 				groupID = fileStats.st_gid
 				fileSize = os.path.getsize(newPath)
 				file_data = str(stat.filemode(os.stat(newPath).st_mode))+'\t'+str(linkNum)+'\t'+ str(userID) +'\t'+ str(groupID)+'\t\t'+str(fileSize)+'\t'+str(date_mod)+'\t'+file 
-				response.append(file_data)
+				dirList.append(file_data)
 		
-		for item in response:
-			data_socket.send((item+'\r\n').encode())
-			
+		
+		if not self.ActiveMode:
+			for item in dirList:
+				data_socket.send((item+'\r\n').encode())
+		else:
+			for item in dirList:
+				self.dataConn.send((item+'\r\n').encode())
+				
+		if not self.ActiveMode:
+			data_socket.close()
+		
 		reply = "200 Listing completed\r\n"
 		self.send_response(reply)
 #end List
@@ -262,7 +274,10 @@ class FTPServer (threading.Thread):
 #begin Passive
 	def PASV(self):
 		# Passive connection_socket, Disable Active mode
-		self.ActiveMode = False
+		if self.ActiveMode:
+			self.ActiveMode= False
+			self.dataConn.close()
+		
 		host_name = socket.gethostbyname(socket.gethostname())
 		
 		# calculate a random port number between 12032 and 33023
@@ -334,7 +349,7 @@ class FTPServer (threading.Thread):
 	def retriveFile(self, file_name):
 		# returns data to the client.
 		reply = ""
-		if os.path.isfile(file_name):
+		if os.path.isfile(file_name) and (file_name not in UploadList):
 			reply = "150 opening " + self.dataType + " mode data connection for " + file_name + "(" + str(os.path.getsize(file_name))+ " bytes)\r\n"
 			self.send_response(reply)
 			
@@ -388,7 +403,9 @@ class FTPServer (threading.Thread):
 	# STORES data on the server
 		reply = "150 File status okay; about to open data connection\r\n"
 		self.send_response(reply)
-	
+		
+		UploadList.append(filename)
+		
 		if not self.ActiveMode:
 			data_socket, data_address = self.dataConn.accept()
 		
@@ -412,6 +429,8 @@ class FTPServer (threading.Thread):
 		if not self.ActiveMode:
 			data_socket.close()
 		self.dataConn.close()
+		
+		UploadList.remove(filename)
 		
 		reply = "226 Closing data connection. Requested transfer action successful\r\n"
 		self.send_response(reply)

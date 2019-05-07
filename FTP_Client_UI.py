@@ -313,34 +313,34 @@ class clientUI_Interface(Ui_ClientUI):
 	#==================================================================================
 	def downloadFile(self):
 		for currentQTableWidgetRow in self.remoteDir_tableWidget.selectionModel().selectedRows():
-			if currentQTableWidgetRow.row()!=0:
+			
+			try:
+				filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+			except:
+				return
+			permission = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 3).text()
+			if permission.find('d') is -1:
 				try:
-					filename = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 0).text()
+					#saveFileInDirectory = str(QtWidgets.QFileDialog.getExistingDirectory(None, "Save File In Directory", currentDirectory,\
+					#QtWidgets.QFileDialog.ShowDirsOnly))
+					
+					self.ftpClient.downloadList.append(filename)
+					self.callDownloadFn()
+					
+					downloadThread = actionHandler(self.ftpClient.download_file,filename)
+					
+					downloadThread.signals.finished.connect(self.downloadThreadComplete)
+					downloadThread.signals.error.connect(self.downloadFailed)
+					downloadThread.signals.fileProgress.connect(self.displayDownloadProgBar)
+					
+					self.threadpool.start(downloadThread)
+					
 				except:
-					return
-				returnpermission = self.remoteDir_tableWidget.item(currentQTableWidgetRow.row(), 3).text()
-				if permission.find('d') is -1:
-					try:
-						#saveFileInDirectory = str(QtWidgets.QFileDialog.getExistingDirectory(None, "Save File In Directory", currentDirectory,\
-						#QtWidgets.QFileDialog.ShowDirsOnly))
-						
-						self.ftpClient.downloadList.append(filename)
-						self.callDownloadFn()
-						
-						downloadThread = actionHandler(self.ftpClient.download_file,filename)
-						
-						downloadThread.signals.finished.connect(self.downloadThreadComplete)
-						downloadThread.signals.error.connect(self.downloadFailed)
-						downloadThread.signals.fileProgress.connect(self.displayDownloadProgBar)
-						
-						self.threadpool.start(downloadThread)
-						
-					except:
-						
-						print("Error creating download Thread")
-				else:
-					self.setSatus(True,"Cant downloadFile, Try open instead")
-					self.dispStatus()
+					
+					print("Error creating download Thread")
+			else:
+				self.setSatus(True,"Cant downloadFile, Try open instead")
+				self.dispStatus()
 					
 		self.dispStatus()
 	#==================================================================================
